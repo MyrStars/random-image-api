@@ -102,7 +102,7 @@ router.get('/:slug', async (req, res) => {
               }
             }
 
-            buffer = await img.getBuffer(Jimp.MIME_JPEG);
+            buffer = await img.getBuffer('image/jpeg');
           }
         }
 
