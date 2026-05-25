@@ -46,6 +46,17 @@ router.get('/:id', (req, res) => {
 });
 
 /**
+ * 清理配置中的字符串字段（去除首尾空格）
+ */
+function trimConfig(config) {
+  const cleaned = {};
+  for (const [key, value] of Object.entries(config)) {
+    cleaned[key] = typeof value === 'string' ? value.trim() : value;
+  }
+  return cleaned;
+}
+
+/**
  * POST /admin/api/storages
  * 添加存储源
  */
@@ -55,7 +66,7 @@ router.post('/', (req, res) => {
     if (!name || !type || !config) {
       return res.status(400).json({ code: 400, message: '缺少必填字段' });
     }
-    const storage = imageService.createStorage({ name, type, config, endpoint, status });
+    const storage = imageService.createStorage({ name: name.trim(), type, config: trimConfig(config), endpoint: endpoint?.trim(), status });
     res.json({ code: 0, data: storage, message: '添加成功' });
   } catch (err) {
     res.status(500).json({ code: 500, message: err.message });
@@ -68,7 +79,11 @@ router.post('/', (req, res) => {
  */
 router.put('/:id', (req, res) => {
   try {
-    imageService.updateStorage(req.params.id, req.body);
+    const data = { ...req.body };
+    if (data.config) data.config = trimConfig(data.config);
+    if (data.name) data.name = data.name.trim();
+    if (data.endpoint) data.endpoint = data.endpoint.trim();
+    imageService.updateStorage(req.params.id, data);
     res.json({ code: 0, message: '更新成功' });
   } catch (err) {
     res.status(500).json({ code: 500, message: err.message });
@@ -102,6 +117,7 @@ router.post('/:id/test', async (req, res) => {
     const result = await adapter.test();
     res.json({ code: 0, data: result });
   } catch (err) {
+    console.error('[Test Error]', err.message);
     res.json({ code: 0, data: { success: false, message: err.message } });
   }
 });

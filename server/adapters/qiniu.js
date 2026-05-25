@@ -76,7 +76,8 @@ class QiniuAdapter extends StorageAdapter {
       this.bucketManager.listPrefix(this.bucket, options, (err, body, info) => {
         if (err) return reject(err);
         if (info.statusCode !== 200) {
-          return reject(new Error(`List failed: ${info.statusCode}`));
+          const detail = body ? JSON.stringify(body) : '';
+          return reject(new Error(`List failed: ${info.statusCode} ${detail}`));
         }
         const items = (body.items || []).map(item => ({
           key: item.key,
@@ -97,7 +98,12 @@ class QiniuAdapter extends StorageAdapter {
       const result = await this.list('', null, 1);
       return { success: true, message: `连接成功，存储桶中有文件` };
     } catch (err) {
-      return { success: false, message: `连接失败: ${err.message}` };
+      // 解析七牛云错误信息
+      let msg = err.message;
+      if (msg.includes('401')) {
+        msg = '认证失败，请检查 AccessKey、SecretKey 和 Bucket 是否正确，以及区域(Region)是否匹配';
+      }
+      return { success: false, message: `连接失败: ${msg}` };
     }
   }
 
