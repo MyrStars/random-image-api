@@ -13,7 +13,7 @@ const { Jimp } = require('jimp');
  *   type=raw     -> 代理模式，返回图片二进制
  *   w=500        -> 指定宽度（自动切换代理模式）
  *   h=200        -> 指定高度（自动切换代理模式）
- *   mode=fit     -> 缩放模式: fit(适应，不变形) | fill(填充，可能裁剪) | stretch(拉伸)
+ *   mode=fit     -> 缩放模式: fit(适应) | fill(填充裁剪) | stretch(拉伸)
  *   默认         -> 302重定向
  *
  * 示例:
@@ -21,6 +21,8 @@ const { Jimp } = require('jimp');
  *   /api/wallpaper?w=500&h=300  -> 返回500x300的图片（fit模式）
  *   /api/wallpaper?w=500        -> 宽度500，高度按比例
  *   /api/wallpaper?h=300        -> 高度300，宽度按比例
+ *   /api/wallpaper?w=500&h=300&mode=fill   -> 填充模式，可能裁剪
+ *   /api/wallpaper?w=500&h=300&mode=stretch -> 拉伸模式，可能变形
  */
 router.get('/:slug', async (req, res) => {
   try {
@@ -49,7 +51,7 @@ router.get('/:slug', async (req, res) => {
     // 需要调整尺寸 -> 自动使用代理模式
     const needResize = w || h;
 
-    // 代理模式 - 从存储源获取图片并返回
+    // 代理模式
     if (type === 'raw' || needResize) {
       try {
         const response = await fetch(image.url);
@@ -66,26 +68,38 @@ router.get('/:slug', async (req, res) => {
 
           if ((targetW && targetW > 0) || (targetH && targetH > 0)) {
             const img = await Jimp.fromBuffer(buffer);
+            const origW = img.width;
+            const origH = img.height;
 
-            if (mode === 'fill' && targetW && targetH) {
-              // 填充模式：缩放并裁剪到目标尺寸
-              img.resize({ w: targetW, h: targetH, mode: Jimp.RESIZE_COVER });
-            } else if (mode === 'stretch' && targetW && targetH) {
-              // 拉伸模式：强制拉伸到目标尺寸
+            if (mode === 'stretch' && targetW && targetH) {
+              // 拉伸模式：强制目标尺寸
               img.resize({ w: targetW, h: targetH });
+            } else if (mode === 'fill' && targetW && targetH) {
+              // 填充模式：缩放填满后裁剪
+              const scaleW = targetW / origW;
+              const scaleH = targetH / origH;
+              const scale = Math.max(scaleW, scaleH);
+              const newW = Math.round(origW * scale);
+              const newH = Math.round(origH * scale);
+              img.resize({ w: newW, h: newH });
+              // 居中裁剪
+              const cropX = Math.max(0, Math.round((newW - targetW) / 2));
+              const cropY = Math.max(0, Math.round((newH - targetH) / 2));
+              img.crop({ x: cropX, y: cropY, w: targetW, h: targetH });
             } else {
-              // 适应模式（默认）：缩放到目标尺寸内，保持比例
-              const resizeOpts = {};
+              // 适应模式（默认）：保持比例缩放到目标尺寸内
               if (targetW && targetH) {
-                resizeOpts.w = targetW;
-                resizeOpts.h = targetH;
-                resizeOpts.mode = Jimp.RESIZE_BILINEAR;
+                const scaleW = targetW / origW;
+                const scaleH = targetH / origH;
+                const scale = Math.min(scaleW, scaleH);
+                img.resize({ w: Math.round(origW * scale), h: Math.round(origH * scale) });
               } else if (targetW) {
-                resizeOpts.w = targetW;
+                const scale = targetW / origW;
+                img.resize({ w: targetW, h: Math.round(origH * scale) });
               } else {
-                resizeOpts.h = targetH;
+                const scale = targetH / origH;
+                img.resize({ w: Math.round(origW * scale), h: targetH });
               }
-              img.resize(resizeOpts);
             }
 
             buffer = await img.getBufferAsync(Jimp.MIME_JPEG);
@@ -97,7 +111,7 @@ router.get('/:slug', async (req, res) => {
         return res.send(buffer);
       } catch (err) {
         console.error('[Proxy Error]', err.message);
-        return res.status(502).json({ code: 502, message: '代理获取图片失败' });
+        return res.status(502).json({ code: 502, message: '代理获取图片失败: ' + err.message });
       }
     }
 
