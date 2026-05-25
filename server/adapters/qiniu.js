@@ -106,21 +106,6 @@ class QiniuAdapter extends StorageAdapter {
       return { success: false, message: `连接失败: ${msg}` };
     }
   }
-
-  async stat(key) {
-    return new Promise((resolve, reject) => {
-      this.bucketManager.stat(this.bucket, key, (err, body, info) => {
-        if (err) return reject(err);
-        if (info.statusCode === 200) {
-          resolve({ size: body.fsize });
-        } else if (info.statusCode === 612) {
-          resolve(null);
-        } else {
-          reject(new Error(`Stat failed: ${info.statusCode}`));
-        }
-      });
-    });
-  }
 }
 
 module.exports = QiniuAdapter;

@@ -117,7 +117,6 @@ router.post('/:id/test', async (req, res) => {
     const result = await adapter.test();
     res.json({ code: 0, data: result });
   } catch (err) {
-    console.error('[Test Error]', err.message);
     res.json({ code: 0, data: { success: false, message: err.message } });
   }
 });

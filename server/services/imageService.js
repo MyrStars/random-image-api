@@ -40,18 +40,6 @@ function getRandomImage(slug) {
 }
 
 /**
- * 获取分类信息
- */
-function getCategoryBySlug(slug) {
-  return db.prepare(`
-    SELECT c.*, s.name as storage_name, s.type as storage_type
-    FROM categories c
-    LEFT JOIN storage_configs s ON c.storage_id = s.id
-    WHERE c.slug = ?
-  `).get(slug);
-}
-
-/**
  * 获取适配器实例（从数据库读取存储配置）
  */
 function getAdapter(storageId) {
@@ -340,7 +328,6 @@ function getAllImages(page = 1, size = 50) {
 
 module.exports = {
   getRandomImage,
-  getCategoryBySlug,
   uploadImage,
   deleteImage,
   deleteImages,

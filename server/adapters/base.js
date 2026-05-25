@@ -55,15 +55,6 @@ class StorageAdapter {
   async test() {
     throw new Error('Not implemented');
   }
-
-  /**
-   * 获取文件信息
-   * @param {string} key - 存储路径/key
-   * @returns {Promise<{ size: number }|null>}
-   */
-  async stat(key) {
-    throw new Error('Not implemented');
-  }
 }
 
 module.exports = StorageAdapter;

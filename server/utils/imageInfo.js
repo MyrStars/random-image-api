@@ -39,4 +39,4 @@ async function getImageDimensions(buffer) {
   }
 }
 
-module.exports = { getMimeType, isImage, getImageDimensions, MIME_MAP };
+module.exports = { getMimeType, isImage, getImageDimensions };

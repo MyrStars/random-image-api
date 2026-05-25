@@ -1,43 +1,20 @@
 const QiniuAdapter = require('./qiniu');
 
+// 存储类型注册表（只包含已实现的适配器）
 const adapters = {
-  qiniu: QiniuAdapter,
-  // 后续扩展:
-  // aliyun_oss: AliyunOSSAdapter,
-  // tencent_cos: TencentCOSAdapter,
-  // cloudflare_r2: CloudflareR2Adapter,
-  // minio: MinioAdapter,
+  qiniu: { name: '七牛云', Adapter: QiniuAdapter },
 };
 
-/**
- * 创建存储适配器实例
- * @param {string} type - 存储类型
- * @param {object} config - 存储配置（已解密）
- * @param {string} endpoint - 公开访问域名
- * @returns {StorageAdapter}
- */
 function createAdapter(type, config, endpoint) {
-  const AdapterClass = adapters[type];
-  if (!AdapterClass) {
+  const entry = adapters[type];
+  if (!entry) {
     throw new Error(`不支持的存储类型: ${type}，当前支持: ${Object.keys(adapters).join(', ')}`);
   }
-  return new AdapterClass(config, endpoint);
+  return new entry.Adapter(config, endpoint);
 }
 
-/**
- * 获取当前支持的存储类型列表
- */
 function getSupportedTypes() {
-  return Object.keys(adapters).map(key => {
-    const names = {
-      qiniu: '七牛云',
-      aliyun_oss: '阿里云OSS',
-      tencent_cos: '腾讯云COS',
-      cloudflare_r2: 'Cloudflare R2',
-      minio: 'MinIO',
-    };
-    return { type: key, name: names[key] || key };
-  });
+  return Object.entries(adapters).map(([type, entry]) => ({ type, name: entry.name }));
 }
 
 module.exports = { createAdapter, getSupportedTypes };

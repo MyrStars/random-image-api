@@ -28,23 +28,8 @@ class CacheService {
     this.cache.delete(key);
   }
 
-  /**
-   * 使匹配指定前缀的所有缓存失效
-   */
-  delByPrefix(prefix) {
-    for (const key of this.cache.keys()) {
-      if (key.startsWith(prefix)) {
-        this.cache.delete(key);
-      }
-    }
-  }
-
   clear() {
     this.cache.clear();
-  }
-
-  size() {
-    return this.cache.size;
   }
 }
 
