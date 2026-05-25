@@ -1,0 +1,12 @@
+services:
+  random-image-api:
+    build: .
+    container_name: random-image-api
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./data:/app/data
+      - ./.env:/app/.env:ro
+    environment:
+      - NODE_ENV=production
