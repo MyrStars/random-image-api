@@ -72,22 +72,18 @@ router.get('/:slug', async (req, res) => {
             const origH = img.height;
 
             if (mode === 'stretch' && targetW && targetH) {
-              // 拉伸模式：强制目标尺寸
               img.resize({ w: targetW, h: targetH });
             } else if (mode === 'fill' && targetW && targetH) {
-              // 填充模式：缩放填满后裁剪
               const scaleW = targetW / origW;
               const scaleH = targetH / origH;
               const scale = Math.max(scaleW, scaleH);
               const newW = Math.round(origW * scale);
               const newH = Math.round(origH * scale);
               img.resize({ w: newW, h: newH });
-              // 居中裁剪
               const cropX = Math.max(0, Math.round((newW - targetW) / 2));
               const cropY = Math.max(0, Math.round((newH - targetH) / 2));
               img.crop({ x: cropX, y: cropY, w: targetW, h: targetH });
             } else {
-              // 适应模式（默认）：保持比例缩放到目标尺寸内
               if (targetW && targetH) {
                 const scaleW = targetW / origW;
                 const scaleH = targetH / origH;
@@ -102,11 +98,13 @@ router.get('/:slug', async (req, res) => {
               }
             }
 
-            buffer = await img.getBuffer('image/jpeg');
+            // 保持原格式输出
+            const mime = image.mime_type || 'image/jpeg';
+            buffer = await img.getBuffer(mime);
           }
         }
 
-        res.set('Content-Type', needResize ? 'image/jpeg' : (image.mime_type || 'image/jpeg'));
+        res.set('Content-Type', image.mime_type || 'image/jpeg');
         res.set('Cache-Control', 'public, max-age=86400');
         return res.send(buffer);
       } catch (err) {
