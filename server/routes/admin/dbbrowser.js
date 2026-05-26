@@ -9,6 +9,16 @@ router.use(auth);
 // 允许操作的表（白名单，防止SQL注入）
 const ALLOWED_TABLES = ['storage_configs', 'categories', 'images'];
 
+// 允许查询的列白名单（防止列名注入）
+const ALLOWED_COLUMNS = {
+  storage_configs: ['id', 'name', 'type', 'config', 'endpoint', 'status', 'created_at', 'updated_at'],
+  categories: ['id', 'name', 'slug', 'description', 'storage_id', 'storage_path', 'status', 'cache_ttl', 'created_at'],
+  images: ['id', 'category_id', 'filename', 'storage_key', 'url', 'size', 'width', 'height', 'mime_type', 'created_at'],
+};
+
+// 禁止通过DB浏览器编辑的敏感字段
+const READONLY_COLUMNS = ['config', 'created_at', 'updated_at'];
+
 /**
  * GET /admin/api/db/tables
  * 获取所有表信息
@@ -58,6 +68,7 @@ router.get('/:table', (req, res) => {
     // 获取列信息
     const columns = db.prepare(`PRAGMA table_info("${table}")`).all();
     const columnNames = columns.map(c => c.name);
+    const allowedCols = ALLOWED_COLUMNS[table] || columnNames;
 
     // 构建查询
     let whereClause = '';
@@ -66,7 +77,7 @@ router.get('/:table', (req, res) => {
 
     if (search && columnNames.length > 0) {
       // 在所有TEXT列中搜索
-      const textColumns = columns.filter(c => c.type === 'TEXT' || c.type === 'TEXT').map(c => c.name);
+      const textColumns = columns.filter(c => c.type === 'TEXT').map(c => c.name);
       if (textColumns.length > 0) {
         const conditions = textColumns.map(c => `"${c}" LIKE ?`);
         whereClause = ` WHERE ${conditions.join(' OR ')}`;
@@ -76,9 +87,9 @@ router.get('/:table', (req, res) => {
       }
     }
 
-    // 排序
+    // 排序 - 验证排序列名在白名单中
     let orderClause = ' ORDER BY id DESC';
-    if (sort && columnNames.includes(sort)) {
+    if (sort && allowedCols.includes(sort)) {
       const orderDir = order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
       orderClause = ` ORDER BY "${sort}" ${orderDir}`;
     }
@@ -121,15 +132,23 @@ router.put('/:table/:id', (req, res) => {
     // 移除不允许更新的字段
     delete data.id;
     delete data.created_at;
+    delete data.updated_at;
 
-    const fields = Object.keys(data);
-    const values = Object.values(data);
+    const allowedCols = ALLOWED_COLUMNS[table] || [];
+
+    const fields = Object.keys(data).filter(key => {
+      // 过滤：必须在白名单中，且不能是只读字段
+      return allowedCols.includes(key) && !READONLY_COLUMNS.includes(key);
+    });
 
     if (fields.length === 0) {
       return res.status(400).json({ code: 400, message: '没有要更新的字段' });
     }
 
+    const values = fields.map(f => data[f]);
     const setClause = fields.map(f => `"${f}" = ?`).join(', ');
+    setClause += ", updated_at = datetime('now','localtime')";
+
     db.prepare(`UPDATE "${table}" SET ${setClause} WHERE id = ?`).run(...values, id);
 
     res.json({ code: 0, message: '更新成功' });
@@ -149,6 +168,11 @@ router.delete('/:table/:id', (req, res) => {
       return res.status(400).json({ code: 400, message: '不允许操作该表' });
     }
 
+    // 禁止删除 storage_configs 的记录（应通过专用API删除，保证数据一致性）
+    if (table === 'storage_configs') {
+      return res.status(400).json({ code: 400, message: '请通过存储源管理页面删除存储源' });
+    }
+
     db.prepare(`DELETE FROM "${table}" WHERE id = ?`).run(id);
     res.json({ code: 0, message: '删除成功' });
   } catch (err) {
@@ -156,26 +180,7 @@ router.delete('/:table/:id', (req, res) => {
   }
 });
 
-/**
- * POST /admin/api/db/query
- * 执行自定义查询（只读，仅SELECT）
- */
-router.post('/query', (req, res) => {
-  try {
-    const { sql: sqlText } = req.body;
-    if (!sqlText) return res.status(400).json({ code: 400, message: '缺少sql参数' });
-
-    // 安全检查：只允许SELECT
-    const trimmed = sqlText.trim().toUpperCase();
-    if (!trimmed.startsWith('SELECT') && !trimmed.startsWith('PRAGMA')) {
-      return res.status(400).json({ code: 400, message: '只允许SELECT和PRAGMA查询' });
-    }
-
-    const result = db.prepare(sqlText).all();
-    res.json({ code: 0, data: result });
-  } catch (err) {
-    res.status(400).json({ code: 400, message: err.message });
-  }
-});
+// 注意：已移除 POST /admin/api/db/query 自定义SQL查询端点
+// 原因：仅用 startsWith('SELECT') 检查无法防止SQL注入，风险极高
 
 module.exports = router;

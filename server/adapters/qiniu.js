@@ -62,10 +62,16 @@ class QiniuAdapter extends StorageAdapter {
 
   getUrl(key) {
     if (this.endpoint) {
-      return `${this.endpoint}/${key}`;
+      // 确保使用HTTPS
+      let url = this.endpoint;
+      if (url.startsWith('http://')) {
+        url = url.replace('http://', 'https://');
+      }
+      return `${url}/${key}`;
     }
-    // 如果没有配置endpoint，使用七牛默认域名
-    return `http://${this.bucket}.qiniudn.com/${key}`;
+    // 如果没有配置endpoint，使用七牛默认CDN域名（https）
+    // 注意：qiniudn.com 是旧域名，建议在控制台绑定自定义域名并配置 endpoint
+    return `https://${this.bucket}.qiniudn.com/${key}`;
   }
 
   async list(prefix, marker = null, limit = 1000) {
@@ -96,7 +102,8 @@ class QiniuAdapter extends StorageAdapter {
   async test() {
     try {
       const result = await this.list('', null, 1);
-      return { success: true, message: `连接成功，存储桶中有文件` };
+      const hasFiles = result.items.length > 0;
+      return { success: true, message: hasFiles ? '连接成功，存储桶中有文件' : '连接成功，存储桶为空' };
     } catch (err) {
       // 解析七牛云错误信息
       let msg = err.message;

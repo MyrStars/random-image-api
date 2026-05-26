@@ -1,7 +1,24 @@
 const express = require('express');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const config = require('../../config');
 const router = express.Router();
+
+/**
+ * 时序安全的字符串比较，防止时序攻击
+ */
+function timingSafeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const bufA = Buffer.from(a, 'utf8');
+  const bufB = Buffer.from(b, 'utf8');
+  // 长度不同时仍然比较内容，避免通过长度泄露信息
+  if (bufA.length !== bufB.length) {
+    // 用一个假比较保持时间一致
+    crypto.timingSafeEqual(bufA, bufA);
+    return false;
+  }
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 /**
  * POST /admin/api/login
@@ -10,7 +27,7 @@ const router = express.Router();
 router.post('/login', (req, res) => {
   const { username, password } = req.body;
 
-  if (username === config.admin.user && password === config.admin.pass) {
+  if (timingSafeEqual(username, config.admin.user) && timingSafeEqual(password, config.admin.pass)) {
     const token = jwt.sign({ user: username }, config.jwt.secret, {
       expiresIn: config.jwt.expiresIn,
     });

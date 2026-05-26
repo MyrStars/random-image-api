@@ -8,6 +8,8 @@ class CloudflareR2Adapter extends StorageAdapter {
     // R2 使用 S3 兼容接口，endpoint 为 R2 的 API endpoint
     // 格式: https://{account_id}.r2.cloudflarestorage.com
     this.r2Endpoint = config.endpoint || '';
+    // R2.dev 公共访问域名（可选，需在 R2 控制台开启公共访问后获取）
+    this.publicDomain = config.publicDomain || '';
 
     this.client = new S3Client({
       region: 'auto',
@@ -45,13 +47,17 @@ class CloudflareR2Adapter extends StorageAdapter {
   }
 
   getUrl(key) {
-    // R2 公开访问需要绑定自定义域名，或使用 R2.dev 公开 URL
+    // 优先使用自定义域名（endpoint参数）
     if (this.endpoint) {
       return `${this.endpoint}/${key}`;
     }
-    // 如果没有自定义域名，使用 R2 的公共 URL 格式
-    // 注意：需要在 R2 设置中启用公共访问
-    return `https://${this.bucket}.${this.r2Endpoint.replace('https://', '').replace('.r2.cloudflarestorage.com', '')}.r2.dev/${key}`;
+    // 使用 R2.dev 公共域名（需要用户在配置中提供）
+    if (this.publicDomain) {
+      const domain = this.publicDomain.replace(/\/$/, '');
+      return `https://${domain}/${key}`;
+    }
+    // 无法生成有效URL，返回提示
+    return `https://<需配置publicDomain或endpoint>/${key}`;
   }
 
   async list(prefix, marker = null, limit = 1000) {
@@ -78,7 +84,8 @@ class CloudflareR2Adapter extends StorageAdapter {
   async test() {
     try {
       const result = await this.list('', null, 1);
-      return { success: true, message: '连接成功，存储桶中有文件' };
+      const hasFiles = result.items.length > 0;
+      return { success: true, message: hasFiles ? '连接成功，存储桶中有文件' : '连接成功，存储桶为空' };
     } catch (err) {
       let msg = err.message;
       if (err.name === 'InvalidAccessKeyId' || err.name === 'SignatureDoesNotMatch') {

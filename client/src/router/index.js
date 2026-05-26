@@ -43,11 +43,32 @@ const router = createRouter({
   routes,
 })
 
+/**
+ * 简易JWT过期检查（不验证签名，仅检查exp字段）
+ * 真正的验证由后端 auth middleware 完成
+ */
+function isTokenExpired(token) {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    if (payload.exp && payload.exp * 1000 < Date.now()) {
+      return true
+    }
+    return false
+  } catch {
+    return true
+  }
+}
+
 // 路由守卫
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
-  if (!to.meta.public && !token) {
-    next('/admin/login')
+  if (!to.meta.public) {
+    if (!token || isTokenExpired(token)) {
+      localStorage.removeItem('token')
+      next('/admin/login')
+    } else {
+      next()
+    }
   } else {
     next()
   }

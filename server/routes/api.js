@@ -3,6 +3,36 @@ const router = express.Router();
 const imageService = require('../services/imageService');
 const fetch = require('node-fetch');
 const { Jimp } = require('jimp');
+const { getMimeType, isImage } = require('../utils/imageInfo');
+
+// 图片缩放最大尺寸限制，防止DoS
+const MAX_RESIZE_DIMENSION = 4096;
+
+// 代理模式允许的URL协议，防止SSRF
+const ALLOWED_PROTOCOLS = ['https:', 'http:'];
+
+// SSRF防护：禁止访问内网地址
+function isPrivateUrl(urlStr) {
+  try {
+    const url = new URL(urlStr);
+    if (!ALLOWED_PROTOCOLS.includes(url.protocol)) return true;
+    const hostname = url.hostname;
+    // 禁止访问localhost和内网地址
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0') return true;
+    if (hostname === '::1') return true;
+    // 10.0.0.0/8
+    if (/^10\./.test(hostname)) return true;
+    // 172.16.0.0/12
+    if (/^172\.(1[6-9]|2\d|3[01])\./.test(hostname)) return true;
+    // 192.168.0.0/16
+    if (/^192\.168\./.test(hostname)) return true;
+    // 169.254.0.0/16 (云元数据)
+    if (/^169\.254\./.test(hostname)) return true;
+    return false;
+  } catch {
+    return true;
+  }
+}
 
 /**
  * GET /api/:slug
@@ -54,6 +84,11 @@ router.get('/:slug', async (req, res) => {
     // 代理模式
     if (type === 'raw' || needResize) {
       try {
+        // SSRF防护：检查URL是否指向内网
+        if (isPrivateUrl(image.url)) {
+          return res.status(400).json({ code: 400, message: '不允许代理该地址' });
+        }
+
         const response = await fetch(image.url);
         if (!response.ok) {
           return res.status(502).json({ code: 502, message: '获取图片失败' });
@@ -63,8 +98,12 @@ router.get('/:slug', async (req, res) => {
 
         // 如果指定了尺寸，进行缩放
         if (needResize) {
-          const targetW = w ? parseInt(w) : null;
-          const targetH = h ? parseInt(h) : null;
+          let targetW = w ? parseInt(w) : null;
+          let targetH = h ? parseInt(h) : null;
+
+          // 尺寸上限保护，防止DoS
+          if (targetW && targetW > MAX_RESIZE_DIMENSION) targetW = MAX_RESIZE_DIMENSION;
+          if (targetH && targetH > MAX_RESIZE_DIMENSION) targetH = MAX_RESIZE_DIMENSION;
 
           if ((targetW && targetW > 0) || (targetH && targetH > 0)) {
             const img = await Jimp.fromBuffer(buffer);

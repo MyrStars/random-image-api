@@ -9,7 +9,7 @@ FROM node:20-alpine
 WORKDIR /app
 COPY server/ ./server/
 COPY package*.json ./
-COPY .env* ./
+# 注意：不将 .env 烘焙到镜像中，应通过 docker-compose 挂载或环境变量注入
 RUN npm ci --production
 COPY --from=client-builder /app/client/dist ./client/dist
 

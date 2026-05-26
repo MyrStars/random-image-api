@@ -137,8 +137,20 @@ async function handleDelete(id) {
 }
 
 function copyUrl(url) {
-  navigator.clipboard.writeText(url)
-  ElMessage.success('已复制')
+  try {
+    navigator.clipboard.writeText(url)
+    ElMessage.success('已复制')
+  } catch {
+    const ta = document.createElement('textarea')
+    ta.value = url
+    ta.style.position = 'fixed'
+    ta.style.left = '-9999px'
+    document.body.appendChild(ta)
+    ta.select()
+    document.execCommand('copy')
+    document.body.removeChild(ta)
+    ElMessage.success('已复制')
+  }
 }
 
 onMounted(load)

@@ -9,6 +9,24 @@ const { createAdapter, getSupportedTypes } = require('../../adapters');
 router.use(auth);
 
 /**
+ * 对存储配置中的敏感字段进行脱敏
+ * 保留字段的前2位和后2位，中间用 **** 替代
+ */
+function maskConfig(config) {
+  const sensitiveKeys = ['secretKey', 'secretAccessKey', 'accessKeySecret', 'accessKeyId', 'secret'];
+  const masked = { ...config };
+  for (const key of sensitiveKeys) {
+    if (masked[key] && typeof masked[key] === 'string' && masked[key].length > 6) {
+      const val = masked[key];
+      masked[key] = val.slice(0, 2) + '****' + val.slice(-2);
+    } else if (masked[key]) {
+      masked[key] = '****';
+    }
+  }
+  return masked;
+}
+
+/**
  * GET /admin/api/storages
  * 获取存储源列表
  */
@@ -31,14 +49,15 @@ router.get('/types', (req, res) => {
 
 /**
  * GET /admin/api/storages/:id
- * 获取单个存储源
+ * 获取单个存储源（密钥脱敏）
  */
 router.get('/:id', (req, res) => {
   try {
     const storage = imageService.getStorageById(req.params.id);
     if (!storage) return res.status(404).json({ code: 404, message: '存储源不存在' });
-    // 解密config返回给前端
-    storage.config = JSON.parse(decrypt(storage.config));
+    // 解密config后脱敏返回
+    const configObj = JSON.parse(decrypt(storage.config));
+    storage.config = maskConfig(configObj);
     res.json({ code: 0, data: storage });
   } catch (err) {
     res.status(500).json({ code: 500, message: err.message });

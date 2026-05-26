@@ -80,7 +80,8 @@ class TencentCOSAdapter extends StorageAdapter {
   async test() {
     try {
       const result = await this.list('', null, 1);
-      return { success: true, message: '连接成功，存储桶中有文件' };
+      const hasFiles = result.items.length > 0;
+      return { success: true, message: hasFiles ? '连接成功，存储桶中有文件' : '连接成功，存储桶为空' };
     } catch (err) {
       let msg = err.message;
       if (err.statusCode === 403) {

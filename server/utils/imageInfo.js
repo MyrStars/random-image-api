@@ -1,3 +1,4 @@
+const path = require('path');
 const probe = require('probe-image-size');
 
 const MIME_MAP = {
@@ -13,12 +14,12 @@ const MIME_MAP = {
 };
 
 function getMimeType(filename) {
-  const ext = require('path').extname(filename).toLowerCase();
+  const ext = path.extname(filename).toLowerCase();
   return MIME_MAP[ext] || 'application/octet-stream';
 }
 
 function isImage(filename) {
-  const ext = require('path').extname(filename).toLowerCase();
+  const ext = path.extname(filename).toLowerCase();
   return ext in MIME_MAP;
 }
 

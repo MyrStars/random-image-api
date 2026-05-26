@@ -66,6 +66,21 @@ class DatabaseWrapper {
     };
   }
 
+  /**
+   * 事务支持
+   */
+  transaction(fn) {
+    this._db.run('BEGIN TRANSACTION');
+    try {
+      const result = fn();
+      this._db.run('COMMIT');
+      return result;
+    } catch (err) {
+      this._db.run('ROLLBACK');
+      throw err;
+    }
+  }
+
   save() {
     const data = this._db.export();
     const buffer = Buffer.from(data);
@@ -141,6 +156,7 @@ function getDb() {
 }
 
 function startAutoSave() {
+  // 每30秒自动保存
   setInterval(() => {
     if (_db) {
       try { _db.save(); } catch (e) { console.error('[DB Save Error]', e.message); }

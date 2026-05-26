@@ -48,7 +48,8 @@
     <el-dialog v-model="editVisible" title="编辑记录" width="600px" destroy-on-close>
       <el-form label-width="120px">
         <el-form-item v-for="col in editableColumns" :key="col" :label="col">
-          <el-input v-model="editForm[col]" :disabled="col === 'id' || col === 'created_at'" />
+          <el-input v-model="editForm[col]" :disabled="col === 'id' || col === 'created_at' || col === 'updated_at' || col === 'config'" />
+          <div v-if="col === 'config'" class="form-tip">加密字段，请通过专用管理页面修改存储源配置</div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -78,7 +79,8 @@ const editVisible = ref(false)
 const editForm = ref({})
 const saving = ref(false)
 
-const editableColumns = computed(() => columns.value.filter(c => c !== 'created_at'))
+// 排除不可编辑的列
+const editableColumns = computed(() => columns.value.filter(c => c !== 'created_at' && c !== 'updated_at'))
 
 async function loadTables() {
   const res = await api.get('/db/tables')
@@ -92,14 +94,17 @@ async function loadTables() {
 async function loadData() {
   if (!activeTable.value) return
   loading.value = true
-  const params = `?page=${currentPage.value}&size=${pageSize}${searchText.value ? '&search=' + encodeURIComponent(searchText.value) : ''}`
-  const res = await api.get(`/db/${activeTable.value}${params}`)
-  if (res.code === 0) {
-    columns.value = res.data.columns
-    rows.value = res.data.items
-    total.value = res.data.total
+  try {
+    const params = `?page=${currentPage.value}&size=${pageSize}${searchText.value ? '&search=' + encodeURIComponent(searchText.value) : ''}`
+    const res = await api.get(`/db/${activeTable.value}${params}`)
+    if (res.code === 0) {
+      columns.value = res.data.columns
+      rows.value = res.data.items
+      total.value = res.data.total
+    }
+  } finally {
+    loading.value = false
   }
-  loading.value = false
 }
 
 function onTableChange() {
@@ -140,4 +145,5 @@ onMounted(loadTables)
 <style scoped>
 .toolbar { display: flex; gap: 12px; margin-bottom: 12px; align-items: center; }
 .pagination { display: flex; justify-content: center; margin-top: 16px; }
+.form-tip { font-size: 12px; color: #e6a23c; line-height: 1.4; margin-top: 2px; }
 </style>

@@ -69,7 +69,11 @@ class MinIOAdapter extends StorageAdapter {
       let passedMarker = !marker;
 
       stream.on('data', obj => {
-        if (count >= limit) return;
+        if (count >= limit) {
+          // 达到限制后销毁stream，不再接收数据
+          stream.destroy();
+          return;
+        }
         // 跳过 marker 之前的对象
         if (!passedMarker) {
           if (obj.name === marker) passedMarker = true;
@@ -89,6 +93,15 @@ class MinIOAdapter extends StorageAdapter {
           items,
           nextMarker: count >= limit ? items[items.length - 1]?.key : null,
         });
+      });
+      stream.on('close', () => {
+        // stream.destroy() 会触发close而非end，此时也需要resolve
+        if (count >= limit || items.length > 0) {
+          resolve({
+            items,
+            nextMarker: count >= limit ? items[items.length - 1]?.key : null,
+          });
+        }
       });
     });
   }

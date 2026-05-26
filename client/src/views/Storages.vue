@@ -135,6 +135,10 @@
           <el-form-item label="Bucket" prop="config.bucket">
             <el-input v-model="form.config.bucket" placeholder="R2 存储桶名称" />
           </el-form-item>
+          <el-form-item label="公共域名">
+            <el-input v-model="form.config.publicDomain" placeholder="如 pub-xxx.r2.dev（需在R2控制台开启公共访问）" />
+            <div style="font-size:12px;color:#909399;margin-top:2px">R2.dev 公共访问域名，需在 R2 设置中开启</div>
+          </el-form-item>
         </template>
 
         <!-- MinIO配置 -->
@@ -187,7 +191,7 @@ const configDefaults = {
   qiniu: () => ({ accessKey: '', secretKey: '', bucket: '', region: '' }),
   aliyun_oss: () => ({ accessKeyId: '', accessKeySecret: '', bucket: '', region: '' }),
   tencent_cos: () => ({ secretId: '', secretKey: '', bucket: '', region: '' }),
-  cloudflare_r2: () => ({ endpoint: '', accessKeyId: '', secretAccessKey: '', bucket: '' }),
+  cloudflare_r2: () => ({ endpoint: '', accessKeyId: '', secretAccessKey: '', bucket: '', publicDomain: '' }),
   minio: () => ({ endPoint: '', port: '', accessKey: '', secretKey: '', bucket: '', useSSL: true }),
 }
 

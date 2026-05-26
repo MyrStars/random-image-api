@@ -6,7 +6,7 @@
         <el-option v-for="c in categories" :key="c.id" :label="`${c.name} (${c.image_count})`" :value="c.id" />
       </el-select>
       <div class="toolbar-right">
-        <el-button type="success" @click="showUpload = true" :disabled="!selectedCategory"><el-icon><Upload /></el-icon>上传图片</el-button>
+        <el-button type="success" @click="showUpload = true; uploadFiles = []" :disabled="!selectedCategory"><el-icon><Upload /></el-icon>上传图片</el-button>
         <el-button type="primary" @click="syncFromStorage" :disabled="!selectedCategory" :loading="syncing"><el-icon><Refresh /></el-icon>从存储源同步</el-button>
         <el-button type="danger" @click="batchDelete" :disabled="!selectedIds.length"><el-icon><Delete /></el-icon>删除选中 ({{ selectedIds.length }})</el-button>
       </div>
@@ -69,7 +69,7 @@
     </el-dialog>
 
     <!-- 上传弹窗 -->
-    <el-dialog v-model="showUpload" title="上传图片" width="520px" destroy-on-close>
+    <el-dialog v-model="showUpload" title="上传图片" width="520px" destroy-on-close @close="uploadFiles = []">
       <el-upload
         ref="uploadRef"
         drag
@@ -120,12 +120,15 @@ async function loadImages() {
   if (!selectedCategory.value) { images.value = []; total.value = 0; return }
   loading.value = true
   selectedIds.value = []
-  const res = await api.get(`/images?category_id=${selectedCategory.value}&page=${currentPage.value}&size=${pageSize}`)
-  if (res.code === 0) {
-    images.value = res.data.items
-    total.value = res.data.total
+  try {
+    const res = await api.get(`/images?category_id=${selectedCategory.value}&page=${currentPage.value}&size=${pageSize}`)
+    if (res.code === 0) {
+      images.value = res.data.items
+      total.value = res.data.total
+    }
+  } finally {
+    loading.value = false
   }
-  loading.value = false
 }
 
 function toggleSelect(id) {
@@ -148,8 +151,21 @@ function formatSize(bytes) {
 }
 
 function copyUrl(url) {
-  navigator.clipboard.writeText(url)
-  ElMessage.success('已复制')
+  try {
+    navigator.clipboard.writeText(url)
+    ElMessage.success('已复制')
+  } catch {
+    // fallback: 用 textarea 复制
+    const ta = document.createElement('textarea')
+    ta.value = url
+    ta.style.position = 'fixed'
+    ta.style.left = '-9999px'
+    document.body.appendChild(ta)
+    ta.select()
+    document.execCommand('copy')
+    document.body.removeChild(ta)
+    ElMessage.success('已复制')
+  }
 }
 
 async function deleteOne(id) {

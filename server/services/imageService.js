@@ -1,11 +1,47 @@
+const path = require('path');
 const { getDb } = require('../database');
 const db = new Proxy({}, { get(_, prop) { return getDb()[prop]; } });
 const cache = require('./cacheService');
 const { createAdapter } = require('../adapters');
 const { decrypt } = require('../utils/crypto');
+const { encrypt } = require('../utils/crypto');
 const { getMimeType, isImage, getImageDimensions } = require('../utils/imageInfo');
+const { nanoid } = require('../utils/nanoid');
 
 const CACHE_PREFIX = 'images:';
+
+// 大分类阈值：超过此数量使用 ORDER BY RANDOM() 而非全量加载
+const LARGE_CATEGORY_THRESHOLD = 10000;
+
+// 适配器实例缓存，避免每次请求都创建
+const adapterCache = new Map();
+
+/**
+ * 获取适配器实例（带缓存）
+ */
+function getAdapter(storageId) {
+  if (adapterCache.has(storageId)) {
+    return adapterCache.get(storageId);
+  }
+  const storage = db.prepare('SELECT * FROM storage_configs WHERE id = ?').get(storageId);
+  if (!storage) throw new Error('存储源不存在');
+
+  const config = JSON.parse(decrypt(storage.config));
+  const adapter = createAdapter(storage.type, config, storage.endpoint);
+  adapterCache.set(storageId, adapter);
+  return adapter;
+}
+
+/**
+ * 清除适配器缓存（存储源更新时调用）
+ */
+function clearAdapterCache(storageId) {
+  if (storageId) {
+    adapterCache.delete(storageId);
+  } else {
+    adapterCache.clear();
+  }
+}
 
 /**
  * 获取随机图片
@@ -23,6 +59,21 @@ function getRandomImage(slug) {
     const category = db.prepare('SELECT id, cache_ttl FROM categories WHERE slug = ? AND status = 1').get(slug);
     if (!category) return null;
 
+    // 检查图片数量，大分类使用 ORDER BY RANDOM() 优化
+    const countResult = db.prepare('SELECT COUNT(*) as count FROM images WHERE category_id = ?').get(category.id);
+    const imageCount = countResult.count;
+
+    if (imageCount === 0) return null;
+
+    if (imageCount > LARGE_CATEGORY_THRESHOLD) {
+      // 大分类：直接用SQL随机取一条，避免全量加载
+      const image = db.prepare(
+        'SELECT url, width, height, size, mime_type FROM images WHERE category_id = ? ORDER BY RANDOM() LIMIT 1'
+      ).get(category.id);
+      return image || null;
+    }
+
+    // 小分类：全量加载到缓存
     images = db.prepare(
       'SELECT url, width, height, size, mime_type FROM images WHERE category_id = ?'
     ).all(category.id);
@@ -40,17 +91,6 @@ function getRandomImage(slug) {
 }
 
 /**
- * 获取适配器实例（从数据库读取存储配置）
- */
-function getAdapter(storageId) {
-  const storage = db.prepare('SELECT * FROM storage_configs WHERE id = ?').get(storageId);
-  if (!storage) throw new Error('存储源不存在');
-
-  const config = JSON.parse(decrypt(storage.config));
-  return createAdapter(storage.type, config, storage.endpoint);
-}
-
-/**
  * 上传图片
  */
 async function uploadImage(categoryId, fileBuffer, filename) {
@@ -58,8 +98,7 @@ async function uploadImage(categoryId, fileBuffer, filename) {
   if (!category) throw new Error('分类不存在');
 
   const adapter = getAdapter(category.storage_id);
-  const { nanoid } = require('../utils/nanoid');
-  const ext = require('path').extname(filename);
+  const ext = path.extname(filename);
   const key = `${category.storage_path}${nanoid()}${ext}`;
   const mimeType = getMimeType(filename);
 
@@ -159,16 +198,19 @@ async function syncFromStorage(categoryId) {
       if (existing.has(item.key)) continue;
       if (!isImage(item.key)) continue;
 
-      const filename = require('path').basename(item.key);
+      const filename = path.basename(item.key);
       const url = adapter.getUrl(item.key);
       const mimeType = getMimeType(filename);
 
-      db.prepare(`
+      const info = db.prepare(`
         INSERT OR IGNORE INTO images (category_id, filename, storage_key, url, size, mime_type)
         VALUES (?, ?, ?, ?, ?, ?)
       `).run(categoryId, filename, item.key, url, item.size, mimeType);
 
-      added++;
+      // 只在实际插入时计数（changes > 0 表示插入成功）
+      if (info.changes > 0) {
+        added++;
+      }
     }
 
     marker = result.nextMarker;
@@ -206,7 +248,6 @@ function getStorageById(id) {
 }
 
 function createStorage(data) {
-  const { encrypt } = require('../utils/crypto');
   const stmt = db.prepare(`
     INSERT INTO storage_configs (name, type, config, endpoint, status)
     VALUES (?, ?, ?, ?, ?)
@@ -216,7 +257,6 @@ function createStorage(data) {
 }
 
 function updateStorage(id, data) {
-  const { encrypt } = require('../utils/crypto');
   const fields = [];
   const values = [];
 
@@ -229,6 +269,8 @@ function updateStorage(id, data) {
   values.push(id);
 
   db.prepare(`UPDATE storage_configs SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+  // 清除适配器缓存，下次请求时重新创建
+  clearAdapterCache(id);
 }
 
 function deleteStorage(id) {
@@ -236,6 +278,7 @@ function deleteStorage(id) {
   const count = db.prepare('SELECT COUNT(*) as count FROM categories WHERE storage_id = ?').get(id).count;
   if (count > 0) throw new Error('该存储源下还有分类，请先删除关联分类');
   db.prepare('DELETE FROM storage_configs WHERE id = ?').run(id);
+  clearAdapterCache(id);
 }
 
 /**
@@ -283,6 +326,8 @@ function updateCategory(id, data) {
   if (data.storage_path !== undefined) { fields.push('storage_path = ?'); values.push(data.storage_path); }
   if (data.status !== undefined) { fields.push('status = ?'); values.push(data.status); }
   if (data.cache_ttl !== undefined) { fields.push('cache_ttl = ?'); values.push(data.cache_ttl); }
+  // 修复：添加 updated_at 更新（与 updateStorage 保持一致）
+  // categories 表没有 updated_at 列，跳过
   values.push(id);
 
   db.prepare(`UPDATE categories SET ${fields.join(', ')} WHERE id = ?`).run(...values);
@@ -293,9 +338,16 @@ function updateCategory(id, data) {
 }
 
 function deleteCategory(id) {
-  // 先删除该分类下的所有图片记录（不删除存储源文件）
-  db.prepare('DELETE FROM images WHERE category_id = ?').run(id);
-  db.prepare('DELETE FROM categories WHERE id = ?').run(id);
+  // 使用事务保护，确保数据一致性
+  const database = getDb();
+  database.transaction(() => {
+    db.prepare('DELETE FROM images WHERE category_id = ?').run(id);
+    db.prepare('DELETE FROM categories WHERE id = ?').run(id);
+  });
+
+  // 清除该分类的缓存（尝试用id匹配）
+  const cat = db.prepare('SELECT slug FROM categories WHERE id = ?').get(id);
+  if (cat) cache.del(CACHE_PREFIX + cat.slug);
 }
 
 /**
