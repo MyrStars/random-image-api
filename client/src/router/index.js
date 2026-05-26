@@ -36,6 +36,11 @@ const routes = [
     name: 'Database',
     component: () => import('../views/Database.vue'),
   },
+  {
+    path: '/admin/settings',
+    name: 'Settings',
+    component: () => import('../views/Settings.vue'),
+  },
 ]
 
 const router = createRouter({

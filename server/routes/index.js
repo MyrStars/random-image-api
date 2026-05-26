@@ -11,5 +11,6 @@ router.use('/admin/api/categories', require('./admin/categories'));
 router.use('/admin/api/images', require('./admin/images'));
 router.use('/admin/api/stats', require('./admin/dashboard'));
 router.use('/admin/api/db', require('./admin/dbbrowser'));
+router.use('/admin/api/settings', require('./admin/settings'));
 
 module.exports = router;

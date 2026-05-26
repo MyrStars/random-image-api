@@ -4,10 +4,11 @@ const router = express.Router();
 const auth = require('../../middleware/auth');
 const imageService = require('../../services/imageService');
 const { isImage } = require('../../utils/imageInfo');
+const config = require('../../config');
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 50 * 1024 * 1024 },
+  limits: { fileSize: (config.uploadMaxSize || 50) * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     // 后端验证文件类型：只允许图片
     if (isImage(file.originalname)) {

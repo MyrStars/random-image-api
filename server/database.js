@@ -157,11 +157,12 @@ function getDb() {
 
 function startAutoSave() {
   // 每30秒自动保存
+  const interval = config.autoSaveInterval * 1000;
   setInterval(() => {
     if (_db) {
       try { _db.save(); } catch (e) { console.error('[DB Save Error]', e.message); }
     }
-  }, 30000);
+  }, interval);
 }
 
 module.exports = { initDatabase, getDb, startAutoSave };

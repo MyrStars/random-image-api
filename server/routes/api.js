@@ -4,9 +4,7 @@ const imageService = require('../services/imageService');
 const fetch = require('node-fetch');
 const { Jimp } = require('jimp');
 const { getMimeType, isImage } = require('../utils/imageInfo');
-
-// 图片缩放最大尺寸限制，防止DoS
-const MAX_RESIZE_DIMENSION = 4096;
+const config = require('../config');
 
 // 代理模式允许的URL协议，防止SSRF
 const ALLOWED_PROTOCOLS = ['https:', 'http:'];
@@ -101,9 +99,10 @@ router.get('/:slug', async (req, res) => {
           let targetW = w ? parseInt(w) : null;
           let targetH = h ? parseInt(h) : null;
 
-          // 尺寸上限保护，防止DoS
-          if (targetW && targetW > MAX_RESIZE_DIMENSION) targetW = MAX_RESIZE_DIMENSION;
-          if (targetH && targetH > MAX_RESIZE_DIMENSION) targetH = MAX_RESIZE_DIMENSION;
+          // 尺寸上限保护，防止DoS（使用配置中的值）
+          const maxDim = config.resizeMaxDimension || 4096;
+          if (targetW && targetW > maxDim) targetW = maxDim;
+          if (targetH && targetH > maxDim) targetH = maxDim;
 
           if ((targetW && targetW > 0) || (targetH && targetH > 0)) {
             const img = await Jimp.fromBuffer(buffer);

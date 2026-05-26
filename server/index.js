@@ -7,6 +7,10 @@ const { initDatabase, startAutoSave, getDb } = require('./database');
 async function main() {
   // 初始化数据库
   await initDatabase();
+
+  // 从数据库加载运行时配置（覆盖 .env 默认值）
+  config.loadFromDatabase();
+
   startAutoSave();
 
   const routes = require('./routes');

@@ -35,6 +35,10 @@
           <el-icon><Coin /></el-icon>
           <span>数据浏览</span>
         </el-menu-item>
+        <el-menu-item index="/admin/settings">
+          <el-icon><Setting /></el-icon>
+          <span>系统设置</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     <el-container>
@@ -74,6 +78,7 @@ const titleMap = {
   Categories: '分类管理',
   Images: '图片管理',
   Database: '数据浏览',
+  Settings: '系统设置',
 }
 const pageTitle = computed(() => titleMap[route.name] || '随机图片API')
 
