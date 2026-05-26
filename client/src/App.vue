@@ -36,7 +36,7 @@
           <span>数据浏览</span>
         </el-menu-item>
         <el-menu-item index="/admin/settings">
-          <el-icon><Setting /></el-icon>
+          <el-icon><Tools /></el-icon>
           <span>系统设置</span>
         </el-menu-item>
       </el-menu>
