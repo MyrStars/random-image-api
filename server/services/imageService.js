@@ -338,6 +338,10 @@ function updateCategory(id, data) {
 }
 
 function deleteCategory(id) {
+  // 先获取分类信息（事务中删除后无法再查询）
+  const cat = db.prepare('SELECT slug, storage_id, storage_path FROM categories WHERE id = ?').get(id);
+  if (!cat) return;
+
   // 使用事务保护，确保数据一致性
   const database = getDb();
   database.transaction(() => {
@@ -345,9 +349,11 @@ function deleteCategory(id) {
     db.prepare('DELETE FROM categories WHERE id = ?').run(id);
   });
 
-  // 清除该分类的缓存（尝试用id匹配）
-  const cat = db.prepare('SELECT slug FROM categories WHERE id = ?').get(id);
-  if (cat) cache.del(CACHE_PREFIX + cat.slug);
+  // 清除该分类的缓存
+  cache.del(CACHE_PREFIX + cat.slug);
+
+  // 清除适配器缓存（以防后续需要同步）
+  clearAdapterCache(cat.storage_id);
 }
 
 /**
