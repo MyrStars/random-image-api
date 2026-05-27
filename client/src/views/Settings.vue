@@ -6,7 +6,7 @@
         <el-form :model="form" label-width="180px" style="max-width: 700px">
           <el-form-item label="服务端口">
             <el-input-number v-model="form.port" :min="1" :max="65535" />
-            <div class="form-tip">修改后需要重启服务</div>
+            <div class="form-tip">修改后立即生效，服务会自动切换到新端口</div>
           </el-form-item>
           <el-form-item label="公开访问地址">
             <el-input v-model="form.publicUrl" placeholder="https://img.example.com" />
@@ -84,7 +84,7 @@
           <el-form-item label="自动保存间隔">
             <el-input-number v-model="form.autoSaveInterval" :min="5" :max="300" />
             <span style="margin-left: 8px; color: #909399">秒</span>
-            <div class="form-tip">修改后需要重启服务</div>
+            <div class="form-tip">修改后立即生效</div>
           </el-form-item>
           <el-form-item label="公开API频率限制">
             <el-input-number v-model="form.rateLimitPublic" :min="10" :max="1000" :step="10" />
@@ -178,6 +178,7 @@ async function saveSettings() {
     }
 
     saving.value = true
+    const oldPort = form.value.port
     const { data } = await axios.put('/admin/api/settings', form.value, { headers })
     if (data.code === 0) {
       ElMessage.success(data.message || '保存成功')
@@ -188,6 +189,17 @@ async function saveSettings() {
       }
       // 重新加载以获取脱敏后的值
       await loadSettings()
+      // 端口变更提示
+      if (form.value.port !== oldPort) {
+        const newUrl = window.location.protocol + '//' + window.location.hostname + ':' + form.value.port + '/admin/settings'
+        ElMessageBox.alert(
+          `端口已从 ${oldPort} 切换到 ${form.value.port}，请访问新地址：\n${newUrl}`,
+          '端口已变更',
+          { type: 'info', confirmButtonText: '前往新地址' }
+        ).then(() => {
+          window.location.href = newUrl
+        }).catch(() => {})
+      }
     } else {
       ElMessage.error(data.message)
     }

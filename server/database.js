@@ -155,14 +155,27 @@ function getDb() {
   return _db;
 }
 
+let _autoSaveTimer = null;
+
 function startAutoSave() {
-  // 每30秒自动保存
+  // 清除旧定时器（如果有的话）
+  if (_autoSaveTimer) {
+    clearInterval(_autoSaveTimer);
+  }
   const interval = config.autoSaveInterval * 1000;
-  setInterval(() => {
+  _autoSaveTimer = setInterval(() => {
     if (_db) {
       try { _db.save(); } catch (e) { console.error('[DB Save Error]', e.message); }
     }
   }, interval);
+  console.log(`[DB] 自动保存已启动，间隔 ${config.autoSaveInterval} 秒`);
 }
 
-module.exports = { initDatabase, getDb, startAutoSave };
+function stopAutoSave() {
+  if (_autoSaveTimer) {
+    clearInterval(_autoSaveTimer);
+    _autoSaveTimer = null;
+  }
+}
+
+module.exports = { initDatabase, getDb, startAutoSave, stopAutoSave };

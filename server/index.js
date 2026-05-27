@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const config = require('./config');
-const { initDatabase, startAutoSave, getDb } = require('./database');
+const { initDatabase, startAutoSave, stopAutoSave, getDb } = require('./database');
 
 async function main() {
   // 初始化数据库
@@ -116,6 +116,28 @@ async function main() {
     console.log(`随机图片API服务已启动: http://localhost:${config.port}`);
     console.log(`管理后台: http://localhost:${config.port}/admin`);
     console.log(`随机图片API示例: http://localhost:${config.port}/api/{slug}`);
+  });
+
+  // 注册热更新回调：配置变更时无需重启即可生效
+  config.onHotReload((key, value, oldValue) => {
+    if (key === 'port' && value !== oldValue) {
+      // 端口变更：关闭旧监听，开启新端口
+      const oldPort = oldValue;
+      const newPort = value;
+      console.log(`[HotReload] 端口变更: ${oldPort} → ${newPort}，正在切换...`);
+      server.close(() => {
+        server.listen(newPort, () => {
+          console.log(`[HotReload] 服务已切换到新端口: http://localhost:${newPort}`);
+        });
+      });
+    }
+
+    if (key === 'autoSaveInterval' && value !== oldValue) {
+      // 保存间隔变更：重启自动保存定时器
+      console.log(`[HotReload] 自动保存间隔变更: ${oldValue}s → ${value}s，重启定时器...`);
+      stopAutoSave();
+      startAutoSave();
+    }
   });
 
   // 优雅关闭：保存数据库后退出

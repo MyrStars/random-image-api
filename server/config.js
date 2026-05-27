@@ -37,6 +37,17 @@ const _config = { ...envDefaults };
 // 数据库是否已初始化
 let _dbReady = false;
 
+// 热更新回调：当需要重启相关服务的配置变更时调用
+const _hotReloadCallbacks = [];
+
+/**
+ * 注册热更新回调
+ * 回调接收 (key, value) 参数
+ */
+function onHotReload(fn) {
+  _hotReloadCallbacks.push(fn);
+}
+
 /**
  * 从数据库加载配置，覆盖默认值
  * 在数据库初始化完成后调用
@@ -77,11 +88,13 @@ function loadFromDatabase() {
 
 /**
  * 更新配置项并持久化到数据库
+ * 部分配置支持热更新（无需重启）
  */
 function setSetting(key, value) {
   if (!(key in _config)) {
     throw new Error(`未知的配置项: ${key}`);
   }
+  const oldValue = _config[key];
   _config[key] = value;
 
   if (_dbReady) {
@@ -92,6 +105,13 @@ function setSetting(key, value) {
       VALUES (?, ?, datetime('now','localtime'))
       ON CONFLICT(key) DO UPDATE SET value = ?, updated_at = datetime('now','localtime')
     `).run(key, String(value), String(value));
+  }
+
+  // 值实际发生变化时，触发热更新回调
+  if (oldValue !== value) {
+    for (const fn of _hotReloadCallbacks) {
+      try { fn(key, value, oldValue); } catch (e) { console.error('[Config HotReload Error]', e.message); }
+    }
   }
 }
 
@@ -188,10 +208,11 @@ module.exports = {
   getAllSettings,
   getRaw,
   maskSecret,
+  onHotReload,
 
   // 所有配置项的 key 列表和元信息
   SETTINGS_META: {
-    port: { label: '服务端口', type: 'number', group: 'basic', min: 1, max: 65535, restart: true },
+    port: { label: '服务端口', type: 'number', group: 'basic', min: 1, max: 65535, restart: false, hotReload: true },
     adminUser: { label: '管理员用户名', type: 'text', group: 'security', restart: false },
     adminPass: { label: '管理员密码', type: 'password', group: 'security', restart: false, secret: true },
     jwtSecret: { label: 'JWT 密钥', type: 'password', group: 'security', restart: false, secret: true, warning: '修改后所有已登录用户需重新登录' },
@@ -203,7 +224,7 @@ module.exports = {
     uploadMaxFiles: { label: '单次上传文件数上限', type: 'number', group: 'upload', min: 1, max: 100, restart: false },
     resizeMaxDimension: { label: '图片缩放最大尺寸 (px)', type: 'number', group: 'upload', min: 100, max: 16384, restart: false },
     cacheMaxSize: { label: '缓存最大条目数', type: 'number', group: 'advanced', min: 10, max: 10000, restart: false },
-    autoSaveInterval: { label: '自动保存间隔 (秒)', type: 'number', group: 'advanced', min: 5, max: 300, restart: true },
+    autoSaveInterval: { label: '自动保存间隔 (秒)', type: 'number', group: 'advanced', min: 5, max: 300, restart: false, hotReload: true },
     rateLimitPublic: { label: '公开API频率限制 (次/分)', type: 'number', group: 'advanced', min: 10, max: 1000, restart: false },
     rateLimitLogin: { label: '登录频率限制 (次/分)', type: 'number', group: 'advanced', min: 3, max: 60, restart: false },
   },
