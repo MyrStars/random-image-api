@@ -209,7 +209,7 @@ PORT=3100                        # 后续可在系统设置中修改
 ADMIN_USER=admin
 ADMIN_PASS=your_secure_password   # 必须修改！
 JWT_SECRET=your_jwt_secret        # 必须修改！
-ENCRYPT_KEY=0123456789abcdef      # 必须修改！16字符
+ENCRYPT_KEY=0123456789abcdef0123456789abcdef  # 必须修改！32位hex字符串
 DB_PATH=./data/images.db
 PUBLIC_URL=http://localhost:3100
 CORS_ORIGINS=*
@@ -222,19 +222,18 @@ CORS_ORIGINS=*
 ### Docker Compose
 
 ```yaml
-version: '3'
 services:
   random-image-api:
     build: .
+    container_name: random-image-api
+    restart: unless-stopped
     ports:
       - "3100:3100"
     volumes:
-      - ./data:/app/data    # 持久化数据库
+      - ./data:/app/data        # 持久化数据库
+      - ./.env:/app/.env:ro     # 挂载配置文件
     environment:
-      - ADMIN_PASS=your_password
-      - JWT_SECRET=your_secret
-      - ENCRYPT_KEY=your_key
-    restart: unless-stopped
+      - NODE_ENV=production
 ```
 
 ### 反向代理（Nginx）
@@ -260,7 +259,7 @@ server {
 
 1. **修改默认密码**：首次部署必须修改 `.env` 中的 `ADMIN_PASS`
 2. **修改 JWT 密钥**：使用随机生成的 64 位 hex 字符串
-3. **修改加密密钥**：使用随机生成的 16 字符字符串
+3. **修改加密密钥**：使用随机生成的 32 位 hex 字符串
 4. **限制 CORS**：生产环境不要使用 `*`，应指定具体域名
 5. **使用 HTTPS**：生产环境务必配置 SSL 证书
 6. **定期备份**：备份 `data/images.db` 文件即可
