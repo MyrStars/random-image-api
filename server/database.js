@@ -107,7 +107,7 @@ async function initDatabase() {
 
   _db.exec(`
     CREATE TABLE IF NOT EXISTS storage_configs (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      id          INTEGER PRIMARY KEY,
       name        TEXT NOT NULL,
       type        TEXT NOT NULL,
       config      TEXT NOT NULL,
@@ -118,7 +118,7 @@ async function initDatabase() {
     );
 
     CREATE TABLE IF NOT EXISTS categories (
-      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      id              INTEGER PRIMARY KEY,
       name            TEXT NOT NULL,
       slug            TEXT NOT NULL UNIQUE,
       description     TEXT,
@@ -131,7 +131,7 @@ async function initDatabase() {
     );
 
     CREATE TABLE IF NOT EXISTS images (
-      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      id              INTEGER PRIMARY KEY,
       category_id     INTEGER NOT NULL,
       filename        TEXT NOT NULL,
       storage_key     TEXT NOT NULL,
@@ -147,7 +147,99 @@ async function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_images_category ON images(category_id);
   `);
 
+  // 迁移：对已有 AUTOINCREMENT 的表重建（SQLite 不支持 ALTER TABLE DROP AUTOINCREMENT）
+  _migrateRemoveAutoincrement(_db);
+
   return _db;
+}
+
+/**
+ * 迁移：移除已有表的 AUTOINCREMENT
+ * SQLite 不支持 ALTER TABLE DROP AUTOINCREMENT，需要重建表
+ * 只在 sqlite_sequence 表存在时执行（说明有旧的 AUTOINCREMENT 表）
+ */
+function _migrateRemoveAutoincrement(db) {
+  try {
+    // 检查是否存在 sqlite_sequence（有 AUTOINCREMENT 时才会存在）
+    const seqTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='sqlite_sequence'").get();
+    if (!seqTable) return; // 已经没有 AUTOINCREMENT，跳过
+
+    const tables = ['storage_configs', 'categories', 'images'];
+    db.pragma('foreign_keys = OFF');
+    db.exec('BEGIN TRANSACTION');
+
+    for (const table of tables) {
+      // 检查建表语句是否包含 AUTOINCREMENT
+      const row = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name=?").get(table);
+      if (!row || !row.sql || !row.sql.includes('AUTOINCREMENT')) continue;
+
+      // 获取表结构
+      const columns = db.prepare(`PRAGMA table_info("${table}")`).all();
+      const columnDefs = columns.map(c => {
+        let def = `"${c.name}" ${c.type}`;
+        if (c.notnull) def += ' NOT NULL';
+        if (c.dflt_value !== null) def += ` DEFAULT ${c.dflt_value}`;
+        if (c.pk) def += ' PRIMARY KEY'; // 不再带 AUTOINCREMENT
+        return def;
+      }).join(', ');
+
+      // 获取外键
+      const fks = db.prepare(`PRAGMA foreign_key_list("${table}")`).all();
+      const fkClauses = fks.map(fk => {
+        // ON UPDATE 和 ON DELETE
+        let clause = `FOREIGN KEY ("${fk.from}") REFERENCES "${fk.table}"("${fk.to}")`;
+        if (fk.on_delete && fk.on_delete !== 'NO ACTION') clause += ` ON DELETE ${fk.on_delete}`;
+        if (fk.on_update && fk.on_update !== 'NO ACTION') clause += ` ON UPDATE ${fk.on_update}`;
+        return clause;
+      });
+
+      // 获取索引（排除自动创建的主键索引）
+      const indexes = db.prepare(`PRAGMA index_list("${table}")`).all();
+      const indexDefs = [];
+      for (const idx of indexes) {
+        if (idx.origin === 'pk') continue; // 跳过主键索引
+        const idxInfo = db.prepare(`PRAGMA index_info("${idx.name}")`).all();
+        const cols = idxInfo.map(c => `"${c.name}"`).join(', ');
+        indexDefs.push(`CREATE ${idx.unique ? 'UNIQUE ' : ''}INDEX IF NOT EXISTS "${idx.name}" ON "${table}" (${cols})`);
+      }
+
+      // 重建表
+      const allDefs = [...columnDefs.split(', '), ...fkClauses].join(', ');
+      const tempTable = `${table}_old_${Date.now()}`;
+
+      // 1. 重命名旧表
+      db.exec(`ALTER TABLE "${table}" RENAME TO "${tempTable}"`);
+
+      // 2. 创建新表（无 AUTOINCREMENT）
+      // 需要从原始 CREATE TABLE 语句中提取完整定义
+      const origSql = row.sql;
+      const newSql = origSql.replace(/AUTOINCREMENT/gi, '');
+      db.exec(newSql);
+
+      // 3. 复制数据
+      const colNames = columns.map(c => `"${c.name}"`).join(', ');
+      db.exec(`INSERT INTO "${table}" (${colNames}) SELECT ${colNames} FROM "${tempTable}"`);
+
+      // 4. 重建索引
+      for (const idxSql of indexDefs) {
+        db.exec(idxSql);
+      }
+
+      // 5. 删除旧表
+      db.exec(`DROP TABLE "${tempTable}"`);
+    }
+
+    // 清理 sqlite_sequence
+    db.exec('DELETE FROM sqlite_sequence');
+
+    db.exec('COMMIT');
+    db.pragma('foreign_keys = ON');
+    console.log('[DB Migration] AUTOINCREMENT 已移除，ID 现在可复用');
+  } catch (err) {
+    try { db.exec('ROLLBACK'); } catch {}
+    db.pragma('foreign_keys = ON');
+    console.error('[DB Migration] 移除 AUTOINCREMENT 失败（非致命，将继续启动）:', err.message);
+  }
 }
 
 function getDb() {
