@@ -94,7 +94,7 @@ router.post('/generate-key', (req, res) => {
         key = crypto.randomBytes(32).toString('hex');
         break;
       case 'encryptKey':
-        key = crypto.randomBytes(8).toString('hex'); // 16字符 = 16字节 for AES-128
+        key = crypto.randomBytes(16).toString('hex'); // 32字符 = 16字节 for AES-128
         break;
       case 'adminPass':
         key = crypto.randomBytes(8).toString('hex');

@@ -18,7 +18,7 @@ const envDefaults = {
   adminUser: process.env.ADMIN_USER || 'admin',
   adminPass: process.env.ADMIN_PASS || 'admin123',
   jwtSecret: process.env.JWT_SECRET || 'change-me-in-production',
-  encryptKey: process.env.ENCRYPT_KEY || '0123456789abcdef',
+  encryptKey: process.env.ENCRYPT_KEY || '0123456789abcdef0123456789abcdef',
   dbPath: path.resolve(process.env.DB_PATH || './data/images.db'),
   publicUrl: (process.env.PUBLIC_URL || 'http://localhost:3100').replace(/\/$/, ''),
   corsOrigins: process.env.CORS_ORIGINS || '*',
