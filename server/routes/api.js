@@ -14,10 +14,21 @@ function isPrivateUrl(urlStr) {
   try {
     const url = new URL(urlStr);
     if (!ALLOWED_PROTOCOLS.includes(url.protocol)) return true;
-    const hostname = url.hostname;
-    // 禁止访问localhost和内网地址
+    const hostname = url.hostname.toLowerCase();
+
+    // 禁止localhost及其变体
     if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0') return true;
-    if (hostname === '::1') return true;
+    // IPv6 loopback
+    if (hostname === '::1' || hostname === '[::1]') return true;
+    // IPv6映射的IPv4地址
+    if (/^\[::ffff:(\d+\.\d+\.\d+\.\d+)\]$/.test(hostname)) return true;
+    if (/^::ffff:\d+\.\d+\.\d+\.\d+$/.test(hostname)) return true;
+
+    // 禁止纯数字/八进制/十六进制IP（如 0177.0.0.1, 0x7f000001）
+    if (/^[\da-fA-Fx.]+$/.test(hostname) && /^\d/.test(hostname)) {
+      return true; // 可能是数字格式IP，保守拒绝
+    }
+
     // 10.0.0.0/8
     if (/^10\./.test(hostname)) return true;
     // 172.16.0.0/12
@@ -26,6 +37,11 @@ function isPrivateUrl(urlStr) {
     if (/^192\.168\./.test(hostname)) return true;
     // 169.254.0.0/16 (云元数据)
     if (/^169\.254\./.test(hostname)) return true;
+    // 100.64.0.0/10 (Carrier-grade NAT)
+    if (/^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(hostname)) return true;
+    // 198.18.0.0/15 (基准测试)
+    if (/^198\.1[89]\./.test(hostname)) return true;
+
     return false;
   } catch {
     return true;

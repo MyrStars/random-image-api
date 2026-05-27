@@ -21,19 +21,15 @@ const READONLY_COLUMNS = ['config', 'created_at', 'updated_at'];
 
 /**
  * GET /admin/api/db/tables
- * 获取所有表信息
+ * 获取所有表信息（仅返回白名单中的表）
  */
 router.get('/tables', (req, res) => {
   try {
-    const tables = db.prepare(`
-      SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name
-    `).all();
-
-    const result = tables.map(t => {
-      const count = db.prepare(`SELECT COUNT(*) as count FROM "${t.name}"`).get().count;
-      const columns = db.prepare(`PRAGMA table_info("${t.name}")`).all();
+    const result = ALLOWED_TABLES.map(t => {
+      const count = db.prepare(`SELECT COUNT(*) as count FROM "${t}"`).get().count;
+      const columns = db.prepare(`PRAGMA table_info("${t}")`).all();
       return {
-        name: t.name,
+        name: t,
         count,
         columns: columns.map(c => ({
           name: c.name,

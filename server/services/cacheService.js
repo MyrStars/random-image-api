@@ -4,9 +4,20 @@
  * 支持最大容量限制和LRU淘汰策略
  */
 class CacheService {
-  constructor(maxSize = 500) {
+  constructor() {
     this.cache = new Map(); // key -> { data, expireAt, lastAccess }
-    this.maxSize = maxSize; // 最大缓存条目数
+  }
+
+  /**
+   * 获取当前最大缓存条目数（动态读取配置）
+   */
+  get maxSize() {
+    try {
+      const config = require('../config');
+      return config.cacheMaxSize || 500;
+    } catch {
+      return 500;
+    }
   }
 
   get(key) {

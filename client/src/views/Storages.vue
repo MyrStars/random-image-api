@@ -195,18 +195,17 @@ const configDefaults = {
   minio: () => ({ endPoint: '', port: '', accessKey: '', secretKey: '', bucket: '', useSSL: true }),
 }
 
-const defaultConfig = () => ({ accessKey: '', secretKey: '', bucket: '', region: '' })
 const form = reactive({
   name: '',
   type: 'qiniu',
-  config: defaultConfig(),
+  config: configDefaults.qiniu(),
   endpoint: '',
 })
 
 // 切换存储类型时重置配置
 watch(() => form.type, (newType) => {
   if (!editingId.value) {
-    const factory = configDefaults[newType] || defaultConfig
+    const factory = configDefaults[newType] || configDefaults.qiniu
     Object.assign(form.config, factory())
   }
 })
@@ -233,7 +232,7 @@ function openDialog(row) {
     form.name = row.name
     form.type = row.type
     form.endpoint = row.endpoint || ''
-    const factory = configDefaults[row.type] || defaultConfig
+    const factory = configDefaults[row.type] || configDefaults.qiniu
     form.config = row.config ? { ...factory(), ...row.config } : factory()
   } else {
     editingId.value = null
