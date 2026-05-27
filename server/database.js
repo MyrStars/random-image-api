@@ -193,11 +193,12 @@ function _migrateRemoveAutoincrement(db) {
         return clause;
       });
 
-      // 获取索引（排除自动创建的主键索引）
+      // 获取索引（排除自动创建的主键索引和内部自动索引）
       const indexes = db.prepare(`PRAGMA index_list("${table}")`).all();
       const indexDefs = [];
       for (const idx of indexes) {
         if (idx.origin === 'pk') continue; // 跳过主键索引
+        if (idx.name.startsWith('sqlite_autoindex_')) continue; // 跳过UNIQUE约束自动生成的内部索引
         const idxInfo = db.prepare(`PRAGMA index_info("${idx.name}")`).all();
         const cols = idxInfo.map(c => `"${c.name}"`).join(', ');
         indexDefs.push(`CREATE ${idx.unique ? 'UNIQUE ' : ''}INDEX IF NOT EXISTS "${idx.name}" ON "${table}" (${cols})`);
