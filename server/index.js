@@ -77,7 +77,7 @@ async function main() {
   });
 
   // 定期清理过期的频率限制记录
-  setInterval(() => {
+  const rateLimitCleanupTimer = setInterval(() => {
     const now = Date.now();
     for (const [key, entry] of rateLimitMap) {
       if (now - entry.start > RATE_WINDOW * 2) {
@@ -141,6 +141,8 @@ async function main() {
   // 优雅关闭：保存数据库后退出
   function gracefulShutdown(signal) {
     console.log(`\n收到 ${signal} 信号，正在保存数据库并关闭...`);
+    clearInterval(rateLimitCleanupTimer);
+    stopAutoSave();
     try {
       getDb().save();
       console.log('数据库已保存');

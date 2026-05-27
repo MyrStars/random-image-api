@@ -94,6 +94,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '../api'
+import { formatSize } from '../utils'
 
 const categories = ref([])
 const images = ref([])
@@ -140,14 +141,6 @@ function toggleSelect(id) {
 function previewImage(img) {
   previewImg.value = img
   previewVisible.value = true
-}
-
-function formatSize(bytes) {
-  if (!bytes) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB']
-  let i = 0
-  while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024; i++ }
-  return bytes.toFixed(1) + ' ' + units[i]
 }
 
 function copyUrl(url) {

@@ -67,10 +67,19 @@ class MinIOAdapter extends StorageAdapter {
       const stream = this.client.listObjects(this.bucket, prefix || '', true);
       let count = 0;
       let passedMarker = !marker;
+      let resolved = false;
+
+      const finish = () => {
+        if (resolved) return;
+        resolved = true;
+        resolve({
+          items,
+          nextMarker: count >= limit ? items[items.length - 1]?.key : null,
+        });
+      };
 
       stream.on('data', obj => {
         if (count >= limit) {
-          // 达到限制后销毁stream，不再接收数据
           stream.destroy();
           return;
         }
@@ -87,22 +96,13 @@ class MinIOAdapter extends StorageAdapter {
         count++;
       });
 
-      stream.on('error', err => reject(err));
-      stream.on('end', () => {
-        resolve({
-          items,
-          nextMarker: count >= limit ? items[items.length - 1]?.key : null,
-        });
+      stream.on('error', err => {
+        if (resolved) return;
+        resolved = true;
+        reject(err);
       });
-      stream.on('close', () => {
-        // stream.destroy() 会触发close而非end，此时也需要resolve
-        if (count >= limit || items.length > 0) {
-          resolve({
-            items,
-            nextMarker: count >= limit ? items[items.length - 1]?.key : null,
-          });
-        }
-      });
+      stream.on('end', finish);
+      stream.on('close', finish);
     });
   }
 

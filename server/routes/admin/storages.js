@@ -13,7 +13,7 @@ router.use(auth);
  * 保留字段的前2位和后2位，中间用 **** 替代
  */
 function maskConfig(config) {
-  const sensitiveKeys = ['secretKey', 'secretAccessKey', 'accessKeySecret', 'accessKeyId', 'secret'];
+  const sensitiveKeys = ['secretKey', 'secretAccessKey', 'accessKeySecret', 'accessKeyId', 'accessKey', 'secret'];
   const masked = { ...config };
   for (const key of sensitiveKeys) {
     if (masked[key] && typeof masked[key] === 'string' && masked[key].length > 6) {

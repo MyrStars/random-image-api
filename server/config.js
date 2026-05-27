@@ -131,7 +131,7 @@ function updateSettings(settings) {
   if (_dbReady && changes.length > 0) {
     const { getDb } = require('./database');
     const db = getDb();
-    const runTransaction = db.transaction(() => {
+    db.transaction(() => {
       const stmt = db.prepare(`
         INSERT INTO system_settings (key, value, updated_at)
         VALUES (?, ?, datetime('now','localtime'))
@@ -141,8 +141,15 @@ function updateSettings(settings) {
         stmt.run(key, String(_config[key]), String(_config[key]));
       }
     });
-    runTransaction();
   }
+
+  // 触发热更新回调（与 setSetting 保持一致）
+  for (const key of changes) {
+    for (const fn of _hotReloadCallbacks) {
+      try { fn(key, _config[key], undefined); } catch (e) { console.error('[Config HotReload Error]', e.message); }
+    }
+  }
+
   return changes;
 }
 

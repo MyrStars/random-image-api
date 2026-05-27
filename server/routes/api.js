@@ -112,8 +112,15 @@ router.get('/:slug', async (req, res) => {
 
         // 如果指定了尺寸，进行缩放
         if (needResize) {
-          let targetW = w ? parseInt(w) : null;
-          let targetH = h ? parseInt(h) : null;
+          let targetW = w ? parseInt(w, 10) : null;
+          let targetH = h ? parseInt(h, 10) : null;
+
+          // 丢弃无效值（NaN、负数、零）
+          if (targetW && targetW <= 0) targetW = null;
+          if (targetH && targetH <= 0) targetH = null;
+          if (!targetW && !targetH) {
+            return res.redirect(302, image.url);
+          }
 
           // 尺寸上限保护，防止DoS（使用配置中的值）
           const maxDim = config.resizeMaxDimension || 4096;

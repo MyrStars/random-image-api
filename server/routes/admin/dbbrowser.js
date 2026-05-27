@@ -143,7 +143,12 @@ router.put('/:table/:id', (req, res) => {
 
     const values = fields.map(f => data[f]);
     let setClause = fields.map(f => `"${f}" = ?`).join(', ');
-    setClause += ", updated_at = datetime('now','localtime')";
+
+    // 仅当表有 updated_at 列时才追加自动更新
+    const tableColumns = db.prepare(`PRAGMA table_info("${table}")`).all();
+    if (tableColumns.some(c => c.name === 'updated_at')) {
+      setClause += ", updated_at = datetime('now','localtime')";
+    }
 
     db.prepare(`UPDATE "${table}" SET ${setClause} WHERE id = ?`).run(...values, id);
 

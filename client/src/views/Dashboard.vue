@@ -57,6 +57,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import api from '../api'
+import { formatSize } from '../utils'
 
 const stats = ref({ storageCount: 0, categoryCount: 0, imageCount: 0, totalSize: 0 })
 const categories = ref([])
@@ -66,14 +67,6 @@ onMounted(async () => {
   if (statsRes.code === 0) stats.value = statsRes.data
   if (catsRes.code === 0) categories.value = catsRes.data
 })
-
-function formatSize(bytes) {
-  if (!bytes) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB', 'TB']
-  let i = 0
-  while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024; i++ }
-  return bytes.toFixed(1) + ' ' + units[i]
-}
 
 function copyUrl(url) {
   try {
