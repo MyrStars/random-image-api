@@ -38,21 +38,22 @@ async function main() {
   };
   app.use(cors(corsOptions));
 
-  // 简易请求频率限制
-  const rateLimitMap = new Map();
+  // 简易请求频率限制（登录和公开API使用独立计数器）
+  const loginLimitMap = new Map();
+  const publicLimitMap = new Map();
   const RATE_WINDOW = 60 * 1000; // 1分钟
 
   app.use('/admin/api/login', (req, res, next) => {
     const key = req.ip;
     const now = Date.now();
-    const entry = rateLimitMap.get(key) || { count: 0, start: now };
+    const entry = loginLimitMap.get(key) || { count: 0, start: now };
     if (now - entry.start > RATE_WINDOW) {
       entry.count = 1;
       entry.start = now;
     } else {
       entry.count++;
     }
-    rateLimitMap.set(key, entry);
+    loginLimitMap.set(key, entry);
     if (entry.count > config.rateLimitLogin) {
       return res.status(429).json({ code: 429, message: '请求过于频繁，请稍后再试' });
     }
@@ -62,14 +63,14 @@ async function main() {
   app.use('/api/', (req, res, next) => {
     const key = req.ip;
     const now = Date.now();
-    const entry = rateLimitMap.get(key) || { count: 0, start: now };
+    const entry = publicLimitMap.get(key) || { count: 0, start: now };
     if (now - entry.start > RATE_WINDOW) {
       entry.count = 1;
       entry.start = now;
     } else {
       entry.count++;
     }
-    rateLimitMap.set(key, entry);
+    publicLimitMap.set(key, entry);
     if (entry.count > config.rateLimitPublic) {
       return res.status(429).json({ code: 429, message: '请求过于频繁，请稍后再试' });
     }
@@ -79,10 +80,11 @@ async function main() {
   // 定期清理过期的频率限制记录
   const rateLimitCleanupTimer = setInterval(() => {
     const now = Date.now();
-    for (const [key, entry] of rateLimitMap) {
-      if (now - entry.start > RATE_WINDOW * 2) {
-        rateLimitMap.delete(key);
-      }
+    for (const [key, entry] of loginLimitMap) {
+      if (now - entry.start > RATE_WINDOW * 2) loginLimitMap.delete(key);
+    }
+    for (const [key, entry] of publicLimitMap) {
+      if (now - entry.start > RATE_WINDOW * 2) publicLimitMap.delete(key);
     }
   }, 5 * 60 * 1000);
 

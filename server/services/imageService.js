@@ -262,7 +262,17 @@ function updateStorage(id, data) {
 
   if (data.name !== undefined) { fields.push('name = ?'); values.push(data.name); }
   if (data.type !== undefined) { fields.push('type = ?'); values.push(data.type); }
-  if (data.config !== undefined && Object.keys(data.config).length > 0) { fields.push('config = ?'); values.push(encrypt(JSON.stringify(data.config))); }
+  if (data.config !== undefined && Object.keys(data.config).length > 0) {
+    // 先读取现有配置，解密后与新值合并，避免脱敏字段被过滤后丢失其他字段
+    const existing = db.prepare('SELECT config FROM storage_configs WHERE id = ?').get(id);
+    let mergedConfig = {};
+    if (existing) {
+      try { mergedConfig = JSON.parse(decrypt(existing.config)); } catch {}
+    }
+    mergedConfig = { ...mergedConfig, ...data.config };
+    fields.push('config = ?');
+    values.push(encrypt(JSON.stringify(mergedConfig)));
+  }
   if (data.endpoint !== undefined) { fields.push('endpoint = ?'); values.push(data.endpoint); }
   if (data.status !== undefined) { fields.push('status = ?'); values.push(data.status); }
   fields.push("updated_at = datetime('now','localtime')");
@@ -337,21 +347,33 @@ function updateCategory(id, data) {
 }
 
 function deleteCategory(id) {
-  // 先获取分类信息（事务中删除后无法再查询）
+  // 先获取分类信息和关联图片
   const cat = db.prepare('SELECT slug, storage_id, storage_path FROM categories WHERE id = ?').get(id);
   if (!cat) return;
 
-  // 使用事务保护，确保数据一致性
+  const images = db.prepare('SELECT storage_key FROM images WHERE category_id = ?').all(id);
+  const adapter = getAdapter(cat.storage_id);
+
+  // 使用事务保护数据库操作
   const database = getDb();
   database.transaction(() => {
     db.prepare('DELETE FROM images WHERE category_id = ?').run(id);
     db.prepare('DELETE FROM categories WHERE id = ?').run(id);
   });
 
+  // 异步删除远端存储文件（不阻塞响应，失败只记日志）
+  Promise.allSettled(images.map(img => adapter.delete(img.storage_key)))
+    .then(results => {
+      const failed = results.filter(r => r.status === 'rejected');
+      if (failed.length > 0) {
+        console.warn(`[deleteCategory] ${failed.length}/${images.length} 个远端文件删除失败`);
+      }
+    });
+
   // 清除该分类的缓存
   cache.del(CACHE_PREFIX + cat.slug);
 
-  // 清除适配器缓存（以防后续需要同步）
+  // 清除适配器缓存
   clearAdapterCache(cat.storage_id);
 }
 

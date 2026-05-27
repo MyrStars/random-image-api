@@ -17,7 +17,9 @@ function isPrivateUrl(urlStr) {
     const hostname = url.hostname.toLowerCase();
 
     // 禁止localhost及其变体
-    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0') return true;
+    if (hostname === 'localhost' || hostname === '0.0.0.0') return true;
+    // 127.0.0.0/8 整个回环网段
+    if (/^127\./.test(hostname)) return true;
     // IPv6 loopback
     if (hostname === '::1' || hostname === '[::1]') return true;
     // IPv6映射的IPv4地址
@@ -170,7 +172,7 @@ router.get('/:slug', async (req, res) => {
         return res.send(buffer);
       } catch (err) {
         console.error('[Proxy Error]', err.message);
-        return res.status(502).json({ code: 502, message: '代理获取图片失败: ' + err.message });
+        return res.status(502).json({ code: 502, message: '代理获取图片失败' });
       }
     }
 

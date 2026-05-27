@@ -70,6 +70,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '../api'
+import { copyToClipboard } from '../utils'
 
 const categories = ref([])
 const storages = ref([])
@@ -137,20 +138,8 @@ async function handleDelete(id) {
 }
 
 function copyUrl(url) {
-  try {
-    navigator.clipboard.writeText(url)
-    ElMessage.success('已复制')
-  } catch {
-    const ta = document.createElement('textarea')
-    ta.value = url
-    ta.style.position = 'fixed'
-    ta.style.left = '-9999px'
-    document.body.appendChild(ta)
-    ta.select()
-    document.execCommand('copy')
-    document.body.removeChild(ta)
-    ElMessage.success('已复制')
-  }
+  copyToClipboard(url)
+  ElMessage.success('已复制')
 }
 
 onMounted(load)

@@ -94,7 +94,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '../api'
-import { formatSize } from '../utils'
+import { formatSize, copyToClipboard } from '../utils'
 
 const categories = ref([])
 const images = ref([])
@@ -144,21 +144,8 @@ function previewImage(img) {
 }
 
 function copyUrl(url) {
-  try {
-    navigator.clipboard.writeText(url)
-    ElMessage.success('已复制')
-  } catch {
-    // fallback: 用 textarea 复制
-    const ta = document.createElement('textarea')
-    ta.value = url
-    ta.style.position = 'fixed'
-    ta.style.left = '-9999px'
-    document.body.appendChild(ta)
-    ta.select()
-    document.execCommand('copy')
-    document.body.removeChild(ta)
-    ElMessage.success('已复制')
-  }
+  copyToClipboard(url)
+  ElMessage.success('已复制')
 }
 
 async function deleteOne(id) {

@@ -120,9 +120,11 @@ function setSetting(key, value) {
  */
 function updateSettings(settings) {
   const changes = [];
+  const oldValues = {};
   for (const [key, value] of Object.entries(settings)) {
     if (!(key in _config)) continue;
     if (_config[key] !== value) {
+      oldValues[key] = _config[key];
       _config[key] = value;
       changes.push(key);
     }
@@ -143,10 +145,10 @@ function updateSettings(settings) {
     });
   }
 
-  // 触发热更新回调（与 setSetting 保持一致）
+  // 触发热更新回调（与 setSetting 保持一致，传入真实的 oldValue）
   for (const key of changes) {
     for (const fn of _hotReloadCallbacks) {
-      try { fn(key, _config[key], undefined); } catch (e) { console.error('[Config HotReload Error]', e.message); }
+      try { fn(key, _config[key], oldValues[key]); } catch (e) { console.error('[Config HotReload Error]', e.message); }
     }
   }
 

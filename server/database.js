@@ -205,7 +205,6 @@ function _migrateRemoveAutoincrement(db) {
       }
 
       // 重建表
-      const allDefs = [...columnDefs.split(', '), ...fkClauses].join(', ');
       const tempTable = `${table}_old_${Date.now()}`;
 
       // 1. 重命名旧表

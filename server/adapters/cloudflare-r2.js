@@ -66,7 +66,7 @@ class CloudflareR2Adapter extends StorageAdapter {
       Prefix: prefix || undefined,
       MaxKeys: limit,
     };
-    if (marker) params.StartAfter = marker;
+    if (marker) params.ContinuationToken = marker;
 
     const result = await this.client.send(new ListObjectsV2Command(params));
     const items = (result.Contents || []).map(item => ({

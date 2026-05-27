@@ -57,7 +57,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import api from '../api'
-import { formatSize } from '../utils'
+import { formatSize, copyToClipboard } from '../utils'
 
 const stats = ref({ storageCount: 0, categoryCount: 0, imageCount: 0, totalSize: 0 })
 const categories = ref([])
@@ -69,20 +69,8 @@ onMounted(async () => {
 })
 
 function copyUrl(url) {
-  try {
-    navigator.clipboard.writeText(url)
-    ElMessage.success('已复制')
-  } catch {
-    const ta = document.createElement('textarea')
-    ta.value = url
-    ta.style.position = 'fixed'
-    ta.style.left = '-9999px'
-    document.body.appendChild(ta)
-    ta.select()
-    document.execCommand('copy')
-    document.body.removeChild(ta)
-    ElMessage.success('已复制')
-  }
+  copyToClipboard(url)
+  ElMessage.success('已复制')
 }
 </script>
 

@@ -47,7 +47,13 @@ class MinIOAdapter extends StorageAdapter {
   }
 
   async delete(key) {
-    await this.client.removeObject(this.bucket, key);
+    try {
+      await this.client.removeObject(this.bucket, key);
+    } catch (err) {
+      // 文件不存在也视为成功
+      if (err.code === 'NoSuchKey' || err.message?.includes('not found') || err.message?.includes('NoSuchKey')) return;
+      throw err;
+    }
   }
 
   getUrl(key) {

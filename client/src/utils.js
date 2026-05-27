@@ -10,3 +10,22 @@ export function formatSize(bytes) {
   while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024; i++ }
   return bytes.toFixed(1) + ' ' + units[i]
 }
+
+/**
+ * 复制文本到剪贴板（兼容旧浏览器）
+ * @param {string} text - 要复制的文本
+ */
+export function copyToClipboard(text) {
+  try {
+    navigator.clipboard.writeText(text)
+  } catch {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.style.position = 'fixed'
+    ta.style.left = '-9999px'
+    document.body.appendChild(ta)
+    ta.select()
+    document.execCommand('copy')
+    document.body.removeChild(ta)
+  }
+}
