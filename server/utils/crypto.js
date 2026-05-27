@@ -2,7 +2,8 @@ const crypto = require('crypto');
 const config = require('../config');
 
 const ALGORITHM = 'aes-128-cbc';
-const KEY = Buffer.from(config.encryptKey, 'utf8').slice(0, 16);
+// ENCRYPT_KEY 为 32 位 hex 字符串，解码后得到 16 字节（AES-128 所需长度）
+const KEY = Buffer.from(config.encryptKey, 'hex');
 
 function encrypt(text) {
   if (!text) return '';

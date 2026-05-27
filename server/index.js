@@ -161,6 +161,16 @@ async function main() {
 
   process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
   process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+  // 未捕获异常处理：保存数据库后退出，避免数据丢失
+  process.on('uncaughtException', (err) => {
+    console.error('[FATAL] uncaughtException:', err);
+    gracefulShutdown('uncaughtException');
+  });
+  process.on('unhandledRejection', (reason) => {
+    console.error('[FATAL] unhandledRejection:', reason);
+    gracefulShutdown('unhandledRejection');
+  });
 }
 
 main().catch(err => {
