@@ -146,7 +146,7 @@ router.put('/:table/:id', (req, res) => {
     }
 
     const values = fields.map(f => data[f]);
-    const setClause = fields.map(f => `"${f}" = ?`).join(', ');
+    let setClause = fields.map(f => `"${f}" = ?`).join(', ');
     setClause += ", updated_at = datetime('now','localtime')";
 
     db.prepare(`UPDATE "${table}" SET ${setClause} WHERE id = ?`).run(...values, id);

@@ -262,7 +262,7 @@ function updateStorage(id, data) {
 
   if (data.name !== undefined) { fields.push('name = ?'); values.push(data.name); }
   if (data.type !== undefined) { fields.push('type = ?'); values.push(data.type); }
-  if (data.config !== undefined) { fields.push('config = ?'); values.push(encrypt(JSON.stringify(data.config))); }
+  if (data.config !== undefined && Object.keys(data.config).length > 0) { fields.push('config = ?'); values.push(encrypt(JSON.stringify(data.config))); }
   if (data.endpoint !== undefined) { fields.push('endpoint = ?'); values.push(data.endpoint); }
   if (data.status !== undefined) { fields.push('status = ?'); values.push(data.status); }
   fields.push("updated_at = datetime('now','localtime')");
@@ -326,8 +326,7 @@ function updateCategory(id, data) {
   if (data.storage_path !== undefined) { fields.push('storage_path = ?'); values.push(data.storage_path); }
   if (data.status !== undefined) { fields.push('status = ?'); values.push(data.status); }
   if (data.cache_ttl !== undefined) { fields.push('cache_ttl = ?'); values.push(data.cache_ttl); }
-  // 修复：添加 updated_at 更新（与 updateStorage 保持一致）
-  // categories 表没有 updated_at 列，跳过
+  // categories 表没有 updated_at 列，不需要更新
   values.push(id);
 
   db.prepare(`UPDATE categories SET ${fields.join(', ')} WHERE id = ?`).run(...values);

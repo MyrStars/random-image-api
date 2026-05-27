@@ -26,11 +26,11 @@ function isImage(filename) {
 /**
  * 解析图片元数据（宽高）
  * @param {Buffer} buffer - 图片二进制数据
- * @returns {{ width: number, height: number }}
+ * @returns {Promise<{ width: number, height: number }>}
  */
 async function getImageDimensions(buffer) {
   try {
-    const result = probe.sync(buffer);
+    const result = await probe(buffer);
     if (result) {
       return { width: result.width || 0, height: result.height || 0 };
     }

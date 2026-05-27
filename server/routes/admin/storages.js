@@ -99,7 +99,15 @@ router.post('/', (req, res) => {
 router.put('/:id', (req, res) => {
   try {
     const data = { ...req.body };
-    if (data.config) data.config = trimConfig(data.config);
+    if (data.config) {
+      // 如果 config 中包含脱敏值（****），说明用户没有修改该字段，应移除以避免覆盖
+      const cleanedConfig = {};
+      for (const [key, value] of Object.entries(data.config)) {
+        if (typeof value === 'string' && value.includes('****')) continue;
+        cleanedConfig[key] = value;
+      }
+      data.config = trimConfig(cleanedConfig);
+    }
     if (data.name) data.name = data.name.trim();
     if (data.endpoint) data.endpoint = data.endpoint.trim();
     imageService.updateStorage(req.params.id, data);

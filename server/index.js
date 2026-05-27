@@ -41,8 +41,6 @@ async function main() {
   // 简易请求频率限制
   const rateLimitMap = new Map();
   const RATE_WINDOW = 60 * 1000; // 1分钟
-  const RATE_MAX_PUBLIC = 120;   // 公开API每分钟120次
-  const RATE_MAX_LOGIN = 10;     // 登录每分钟10次
 
   app.use('/admin/api/login', (req, res, next) => {
     const key = req.ip;
@@ -55,7 +53,7 @@ async function main() {
       entry.count++;
     }
     rateLimitMap.set(key, entry);
-    if (entry.count > RATE_MAX_LOGIN) {
+    if (entry.count > config.rateLimitLogin) {
       return res.status(429).json({ code: 429, message: '请求过于频繁，请稍后再试' });
     }
     next();
@@ -72,7 +70,7 @@ async function main() {
       entry.count++;
     }
     rateLimitMap.set(key, entry);
-    if (entry.count > RATE_MAX_PUBLIC) {
+    if (entry.count > config.rateLimitPublic) {
       return res.status(429).json({ code: 429, message: '请求过于频繁，请稍后再试' });
     }
     next();

@@ -131,7 +131,7 @@ function updateSettings(settings) {
   if (_dbReady && changes.length > 0) {
     const { getDb } = require('./database');
     const db = getDb();
-    db.transaction(() => {
+    const runTransaction = db.transaction(() => {
       const stmt = db.prepare(`
         INSERT INTO system_settings (key, value, updated_at)
         VALUES (?, ?, datetime('now','localtime'))
@@ -141,6 +141,7 @@ function updateSettings(settings) {
         stmt.run(key, String(_config[key]), String(_config[key]));
       }
     });
+    runTransaction();
   }
   return changes;
 }

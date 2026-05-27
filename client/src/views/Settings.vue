@@ -122,7 +122,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import axios from 'axios'
+import api from '../api'
 
 const activeTab = ref('basic')
 const saving = ref(false)
@@ -147,17 +147,14 @@ const form = ref({
   rateLimitLogin: 10,
 })
 
-const token = localStorage.getItem('token')
-const headers = { Authorization: `Bearer ${token}` }
-
 async function loadSettings() {
   try {
-    const { data } = await axios.get('/admin/api/settings', { headers })
-    if (data.code === 0) {
-      form.value = { ...data.data.settings }
+    const res = await api.get('/settings')
+    if (res.code === 0) {
+      form.value = { ...res.data.settings }
     }
   } catch (e) {
-    ElMessage.error('加载配置失败: ' + (e.response?.data?.message || e.message))
+    // api拦截器已处理401，这里只处理其他错误
   }
 }
 
@@ -179,12 +176,12 @@ async function saveSettings() {
 
     saving.value = true
     const oldPort = form.value.port
-    const { data } = await axios.put('/admin/api/settings', form.value, { headers })
-    if (data.code === 0) {
-      ElMessage.success(data.message || '保存成功')
+    const res = await api.put('/settings', form.value)
+    if (res.code === 0) {
+      ElMessage.success(res.message || '保存成功')
       // 显示警告信息
-      if (data.data?.warnings?.length) {
-        const msgs = data.data.warnings.map(w => w.message).join('\n')
+      if (res.data?.warnings?.length) {
+        const msgs = res.data.warnings.map(w => w.message).join('\n')
         ElMessageBox.alert(msgs, '提示', { type: 'warning' })
       }
       // 重新加载以获取脱敏后的值
@@ -201,11 +198,11 @@ async function saveSettings() {
         }).catch(() => {})
       }
     } else {
-      ElMessage.error(data.message)
+      ElMessage.error(res.message)
     }
   } catch (e) {
     if (e !== 'cancel') {
-      ElMessage.error('保存失败: ' + (e.response?.data?.message || e.message))
+      // api拦截器已弹错误提示
     }
   } finally {
     saving.value = false
@@ -214,28 +211,28 @@ async function saveSettings() {
 
 async function generateKey(type) {
   try {
-    const { data } = await axios.post('/admin/api/settings/generate-key', { type }, { headers })
-    if (data.code === 0) {
-      form.value[type] = data.data.key
+    const res = await api.post('/settings/generate-key', { type })
+    if (res.code === 0) {
+      form.value[type] = res.data.key
       ElMessage.success('已生成随机密钥')
     }
   } catch (e) {
-    ElMessage.error('生成失败: ' + (e.response?.data?.message || e.message))
+    // api拦截器已弹错误提示
   }
 }
 
 async function runTest() {
   testLoading.value = true
   try {
-    const { data } = await axios.post('/admin/api/settings/test', {}, { headers })
-    if (data.code === 0) {
-      testResults.value = data.data.results
-      ElMessage[data.data.allOk ? 'success' : 'warning'](
-        data.data.allOk ? '所有检测项通过' : '部分检测项异常，请检查'
+    const res = await api.post('/settings/test', {})
+    if (res.code === 0) {
+      testResults.value = res.data.results
+      ElMessage[res.data.allOk ? 'success' : 'warning'](
+        res.data.allOk ? '所有检测项通过' : '部分检测项异常，请检查'
       )
     }
   } catch (e) {
-    ElMessage.error('检测失败: ' + (e.response?.data?.message || e.message))
+    // api拦截器已弹错误提示
   } finally {
     testLoading.value = false
   }
