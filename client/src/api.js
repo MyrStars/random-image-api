@@ -3,7 +3,7 @@ import { ElMessage } from 'element-plus'
 
 const api = axios.create({
   baseURL: '/admin/api',
-  timeout: 30000,
+  timeout: 60000,
 })
 
 // 请求拦截器 - 添加token

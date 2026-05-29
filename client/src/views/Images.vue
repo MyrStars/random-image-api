@@ -8,6 +8,7 @@
       <div class="toolbar-right">
         <el-button type="success" @click="showUpload = true; uploadFiles = []" :disabled="!selectedCategory"><el-icon><Upload /></el-icon>上传图片</el-button>
         <el-button type="primary" @click="syncFromStorage" :disabled="!selectedCategory" :loading="syncing"><el-icon><Refresh /></el-icon>从存储源同步</el-button>
+        <el-button type="warning" @click="fixDimensions" :loading="fixing"><el-icon><SetUp /></el-icon>修复尺寸</el-button>
         <el-button type="danger" @click="batchDelete" :disabled="!selectedIds.length"><el-icon><Delete /></el-icon>删除选中 ({{ selectedIds.length }})</el-button>
       </div>
     </div>
@@ -102,6 +103,7 @@ const selectedCategory = ref(null)
 const selectedIds = ref([])
 const loading = ref(false)
 const syncing = ref(false)
+const fixing = ref(false)
 const currentPage = ref(1)
 const pageSize = 40
 const total = ref(0)
@@ -171,6 +173,26 @@ async function syncFromStorage() {
     loadCategories()
   } catch {} finally {
     syncing.value = false
+  }
+}
+
+async function fixDimensions() {
+  await ElMessageBox.confirm(
+    '将下载所有尺寸为 0×0 的图片并解析其宽高信息。\n\n' +
+    '💡 什么时候需要用？\n' +
+    '• 从存储源同步图片后（同步只获取文件列表，不下载图片内容，所以无法解析尺寸）\n' +
+    '• 直接上传的图片不受影响，上传时会自动解析尺寸\n\n' +
+    '⚠️ 此操作会逐张下载图片到服务器内存进行解析，图片较多时可能需要一些时间。',
+    '修复图片尺寸',
+    { confirmButtonText: '开始修复', cancelButtonText: '取消', type: 'warning' }
+  )
+  fixing.value = true
+  try {
+    const res = await api.post('/images/fix-dimensions')
+    ElMessage.success(res.message || `修复完成：共${res.data.total}张，成功${res.data.fixed}张，失败${res.data.failed}张`)
+    loadImages()
+  } catch {} finally {
+    fixing.value = false
   }
 }
 
