@@ -18,7 +18,10 @@ cd random-image-api
 # 2. 复制配置文件并修改
 cp .env.example .env
 
-# 3. 启动
+# 3. 构建并启动
+docker-compose up -d --build
+
+# 后续如仅修改了 .env，重启即可（无需重新构建）
 docker-compose up -d
 
 # 4. 访问管理后台
