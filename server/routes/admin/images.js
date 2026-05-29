@@ -103,7 +103,10 @@ router.post('/sync', async (req, res) => {
     const { category_id } = req.body;
     if (!category_id) return res.status(400).json({ code: 400, message: '缺少category_id' });
     const result = await imageService.syncFromStorage(parseInt(category_id));
-    res.json({ code: 0, data: result, message: `同步完成，新增${result.added}张，共${result.total}张` });
+    // 同步完成后自动修复 0×0 图片的尺寸
+    const fixResult = await imageService.fixDimensions();
+    const fixMsg = fixResult.fixed > 0 ? `，已自动修复${fixResult.fixed}张图片尺寸` : '';
+    res.json({ code: 0, data: result, message: `同步完成，新增${result.added}张，共${result.total}张${fixMsg}` });
   } catch (err) {
     res.status(500).json({ code: 500, message: err.message });
   }
