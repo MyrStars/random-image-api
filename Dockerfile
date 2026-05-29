@@ -10,7 +10,7 @@ WORKDIR /app
 COPY server/ ./server/
 COPY package*.json ./
 # 注意：不将 .env 烘焙到镜像中，应通过 docker-compose 挂载或环境变量注入
-RUN npm ci --production
+RUN npm install --omit=dev
 COPY --from=client-builder /app/client/dist ./client/dist
 
 VOLUME /app/data
