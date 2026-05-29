@@ -224,6 +224,38 @@ async function syncFromStorage(categoryId) {
 }
 
 /**
+ * 修复图片尺寸：下载所有 0×0 的图片并解析宽高
+ */
+async function fixDimensions() {
+  const fetch = require('node-fetch');
+  const images = db.prepare('SELECT * FROM images WHERE width = 0 AND height = 0').all();
+  let fixed = 0, failed = 0;
+
+  for (const img of images) {
+    try {
+      const resp = await fetch(img.url, { timeout: 15000 });
+      if (!resp.ok) { failed++; continue; }
+      const buffer = Buffer.from(await resp.arrayBuffer());
+      const { width, height } = getImageDimensions(buffer);
+      if (width > 0 || height > 0) {
+        db.prepare('UPDATE images SET width = ?, height = ? WHERE id = ?').run(width, height, img.id);
+        fixed++;
+      } else {
+        failed++;
+      }
+    } catch {
+      failed++;
+    }
+  }
+
+  // 清除所有分类缓存
+  const categories = db.prepare('SELECT slug FROM categories').all();
+  for (const c of categories) cache.del(CACHE_PREFIX + c.slug);
+
+  return { total: images.length, fixed, failed };
+}
+
+/**
  * 获取图片列表（分页）
  */
 function getImages(categoryId, page = 1, size = 20) {

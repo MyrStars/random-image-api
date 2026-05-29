@@ -109,4 +109,17 @@ router.post('/sync', async (req, res) => {
   }
 });
 
+/**
+ * POST /admin/api/images/fix-dimensions
+ * 修复所有 0×0 图片的宽高
+ */
+router.post('/fix-dimensions', async (req, res) => {
+  try {
+    const result = await imageService.fixDimensions();
+    res.json({ code: 0, data: result, message: `修复完成，共${result.total}张，成功${result.fixed}张，失败${result.failed}张` });
+  } catch (err) {
+    res.status(500).json({ code: 500, message: err.message });
+  }
+});
+
 module.exports = router;
