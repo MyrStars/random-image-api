@@ -456,4 +456,5 @@ module.exports = {
   deleteCategory,
   getStats,
   getAllImages,
+  fixDimensions,
 };
