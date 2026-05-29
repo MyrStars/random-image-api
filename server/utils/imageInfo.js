@@ -1,5 +1,5 @@
 const path = require('path');
-const probe = require('probe-image-size');
+const imageSize = require('image-size');
 
 const MIME_MAP = {
   '.jpg': 'image/jpeg',
@@ -26,11 +26,11 @@ function isImage(filename) {
 /**
  * 解析图片元数据（宽高）
  * @param {Buffer} buffer - 图片二进制数据
- * @returns {Promise<{ width: number, height: number }>}
+ * @returns {{ width: number, height: number }}
  */
-async function getImageDimensions(buffer) {
+function getImageDimensions(buffer) {
   try {
-    const result = await probe(buffer);
+    const result = imageSize(buffer);
     if (result) {
       return { width: result.width || 0, height: result.height || 0 };
     }

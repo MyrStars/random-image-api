@@ -106,7 +106,7 @@ async function uploadImage(categoryId, fileBuffer, filename) {
   const result = await adapter.upload(key, fileBuffer, mimeType);
 
   // 解析图片宽高
-  const { width, height } = await getImageDimensions(fileBuffer);
+  const { width, height } = getImageDimensions(fileBuffer);
 
   // 写入数据库
   const stmt = db.prepare(`
